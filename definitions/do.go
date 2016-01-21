@@ -25,6 +25,7 @@ type Do struct {
 	OutputTable   bool     `mapstructure:"," json:"," yaml:"," toml:","`
 	Dump          bool     `mapstructure:"," json:"," yaml:"," toml:","`
 	Lines         int      `mapstructure:"," json:"," yaml:"," toml:","` // XXX: for tail and logs
+	Nodes         int      `mapstructure:"," json:"," yaml:"," toml:","`
 	Timeout       uint     `mapstructure:"," json:"," yaml:"," toml:","`
 	N             uint     `mapstructure:"," json:"," yaml:"," toml:","`
 	Address       string   `mapstructure:"," json:"," yaml:"," toml:","`
@@ -93,6 +94,7 @@ type Do struct {
 	Operations        *Operation
 	Service           *Service
 	ServiceDefinition *ServiceDefinition
+	//RemMachines          *RemMachine
 
 	// Return
 	Result string
@@ -105,5 +107,6 @@ func NowDo() *Do {
 		Operations:        BlankOperation(),
 		Service:           BlankService(),
 		ServiceDefinition: BlankServiceDefinition(),
+		//Machines:          BlankMachine(),
 	}
 }

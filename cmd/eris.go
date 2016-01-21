@@ -116,8 +116,8 @@ func AddCommands() {
 	// TODO
 	// buildApplicationsCommand()
 	// ErisCmd.AddCommand(Applications)
-	// buildRemotesCommand()
-	// ErisCmd.AddCommand(Remotes)
+	buildRemotesCommand()
+	ErisCmd.AddCommand(Remotes)
 
 	buildFilesCommand()
 	ErisCmd.AddCommand(Files)
