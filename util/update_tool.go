@@ -15,6 +15,7 @@ import (
 
 func UpdateErisGo(path string, do *definitions.Do) error {
 	// TODO handle errors!
+	// cleaner ch dir functionality
 	//change pwd to eris/cli
 	ChangeDirectory("src")
 
@@ -35,7 +36,6 @@ func UpdateErisGo(path string, do *definitions.Do) error {
 }
 
 func UpdateErisBinary(path string) error {
-
 	ChangeDirectory("bin")
 	_, err := DownloadLatestBinaryRelease()
 	return err
