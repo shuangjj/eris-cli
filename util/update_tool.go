@@ -13,7 +13,7 @@ import (
 	"github.com/eris-ltd/eris-cli/definitions"
 )
 
-func UpdateErisGo(path string, do *definitions.Do) error {
+func UpdateErisGo(do *definitions.Do) error {
 	// TODO handle errors!
 	// cleaner ch dir functionality
 	//change pwd to eris/cli
@@ -35,7 +35,7 @@ func UpdateErisGo(path string, do *definitions.Do) error {
 	return nil
 }
 
-func UpdateErisBinary(path string) error {
+func UpdateErisBinary() error {
 	ChangeDirectory("bin")
 	_, err := DownloadLatestBinaryRelease()
 	return err
