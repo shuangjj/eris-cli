@@ -1,6 +1,7 @@
 {
 	"ImportPath": "github.com/eris-ltd/eris-cli",
 	"GoVersion": "go1.5",
+	"GodepVersion": "v60",
 	"Packages": [
 		"./..."
 	],
@@ -158,6 +159,10 @@
 		{
 			"ImportPath": "github.com/bugsnag/osext",
 			"Rev": "cd2b779537780171a6436fbc39950e081b0187bb"
+		},
+		{
+			"ImportPath": "github.com/rs/cors",
+			"Rev": "5950cf11d77f8a61b432a25dd4d444b4ced01379"
 		}
 	]
 }
