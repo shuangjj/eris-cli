@@ -163,6 +163,14 @@
 		{
 			"ImportPath": "github.com/rs/cors",
 			"Rev": "5950cf11d77f8a61b432a25dd4d444b4ced01379"
+		},
+		{
+			"ImportPath": "github.com/rs/xhandler",
+			"Rev": "d9d9599b6aaf6a058cb7b1f48291ded2cbd13390"
+		},
+		{
+			"ImportPath": "golang.org/x/net/context",
+			"Rev": "b6d7b1396ec874c3b00f6c84cd4301a17c56c8ed"
 		}
 	]
 }
