@@ -25,16 +25,6 @@ func GetFiles(do *definitions.Do) error {
 		return err
 	}
 
-	if do.CSV != "" {
-		log.WithFields(log.Fields{
-			"from": do.CSV,
-			"to":   do.NewName,
-		}).Debug("Importing files")
-		if err := importFiles(do.CSV, do.NewName); err != nil {
-			return err
-		}
-	}
-
 	dirBool := checkPath(do.Path)
 
 	if dirBool {
@@ -48,7 +38,6 @@ func GetFiles(do *definitions.Do) error {
 		}
 		log.Warn("Directory object getted succesfully.")
 		log.Warn(util.TrimString(buf.String()))
-		//get like you put dir
 	} else {
 		if err := importFile(do.Name, do.Path); err != nil {
 			return err
@@ -92,11 +81,8 @@ func PutFiles(do *definitions.Do) error {
 }
 
 func exportDirectory(do *definitions.Do) (*bytes.Buffer, error) {
-
 	// path to dir on host
 	do.Source = do.Name
-	// path to dest in cont (doesn't exist, need to make it)
-	// will be removed later
 	do.Destination = filepath.Join(ErisContainerRoot, "scratch", "data", do.Source)
 	do.Name = "ipfs"
 
@@ -174,32 +160,16 @@ func importDirectory(do *definitions.Do) (*bytes.Buffer, error) {
 
 }
 func PinFiles(do *definitions.Do) error {
+	if err := EnsureIPFSrunning(); err != nil {
+		return err
+	}
+	log.WithFields(log.Fields{
+		"file": do.Name,
+		"path": do.Path,
+	}).Debug("Pinning a file")
 	hash, err := pinFile(do.Name)
 	if err != nil {
 		return err
-		if err := EnsureIPFSrunning(); err != nil {
-			return err
-		}
-
-		if do.CSV != "" {
-			log.WithField("=>", do.CSV).Debug("Pinning all files from")
-			hashes, err := pinFiles(do.CSV)
-			if err != nil {
-				return err
-			}
-			do.Result = hashes
-		}
-
-	} else {
-		log.WithFields(log.Fields{
-			"file": do.Name,
-			"path": do.Path,
-		}).Debug("Pinning a file")
-		hash, err := pinFile(do.Name)
-		if err != nil {
-			return err
-		}
-		do.Result = hash
 	}
 	do.Result = hash
 	return nil
@@ -402,28 +372,6 @@ func rmPinnedByHash(hash string) (string, error) {
 
 //---------------------------------------------------------
 // helpers
-
-func writeCsv(hashArray, fileNames []string) error {
-	strToWrite := make([][]string, len(hashArray))
-	for i := range hashArray {
-		strToWrite[i] = []string{hashArray[i], fileNames[i]}
-
-	}
-
-	csvfile, err := os.Create("ipfs_hashes.csv")
-	if err != nil {
-		return fmt.Errorf("error creating csv file: %v", err)
-	}
-	defer csvfile.Close()
-
-	w := csv.NewWriter(csvfile)
-	w.WriteAll(strToWrite)
-
-	if err := w.Error(); err != nil {
-		return fmt.Errorf("error writing csv: %v", err)
-	}
-	return nil
-}
 
 func EnsureIPFSrunning() error {
 	doNow := definitions.NowDo()
