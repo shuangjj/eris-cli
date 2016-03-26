@@ -60,10 +60,53 @@ func version() string {
 
 // TODO break this up!!!
 func DownloadLatestBinaryRelease() (string, error) {
+
+	filename, fileURL, version, err := getLatestBinaryInfo()
+
+	erisBin, output, err := createBinaryFile(filename)
+
+	fileResponse, err := http.Get(fileURL)
+	if err != nil {
+		return "", fmt.Errorf("error getting file: %v\n", err)
+	}
+	defer fileResponse.Body.Close()
+
+	_, err = io.Copy(output, fileResponse.Body)
+	if err != nil {
+		return "", fmt.Errorf("error saving file: %v\n", err)
+	}
+	erisLoc, err := exec.LookPath("eris")
+	if err != nil {
+		return "", err
+	}
+
+	platform := runtime.GOOS
+	// this is hacky !!!
+	if erisBin != "" {
+		log.Println("downloaded eris binary", version, "for", platform, "to", erisBin, "\n Please manually move to", erisLoc)
+	} else {
+		log.Println("downloaded eris binary", version, "for", platform, "to", erisLoc)
+	}
+
+	// TODO fix this part!
+	var unzip string = "tar -xvf"
+	if platform != "linux" {
+		unzip = "unzip"
+	}
+	cmd := exec.Command("bin/sh", "-c", unzip, filename)
+	if err := cmd.Run(); err != nil {
+		return filename, fmt.Errorf("unzipping failed: %v\n", err)
+	}
+	// end fix needed
+
+	return filename, nil
+}
+
+func getLatestBinaryInfo() (string, string, string, error) {
 	latestURL := "https://github.com/eris-ltd/eris-cli/releases/latest"
 	resp, err := http.Get(latestURL)
 	if err != nil {
-		return "", fmt.Errorf("could not retrieve latest eris release at %s\nerror: %v\n", latestURL, err)
+		return "", "", "", fmt.Errorf("could not retrieve latest eris release at %s\nerror: %v\n", latestURL, err)
 	}
 
 	latestURL = resp.Request.URL.String()
@@ -82,6 +125,10 @@ func DownloadLatestBinaryRelease() (string, error) {
 		filename += ".zip"
 	}
 
+	return filename, fileURL, version, nil
+}
+
+func createBinaryFile(filename string) (string, *os.File, error) {
 	var erisBin string
 	output, err := os.Create(filename)
 	// if we dont have permissions to create a file where eris cli exists, attempt to create file within HOME folder
@@ -91,50 +138,20 @@ func DownloadLatestBinaryRelease() (string, error) {
 			err = os.MkdirAll(erisBin, 0755)
 			if err != nil {
 				log.Println("Error creating directory", erisBin, "Did not download binary. Exiting...")
-				return "", err
+				return "", nil, err
 			}
 		}
 		err = os.Chdir(erisBin)
 		if err != nil {
 			log.Println("Error changing directory to", erisBin, "Did not download binary. Exiting...")
-			return "", err
+			return "", nil, err
 		}
 		output, err = os.Create(filename)
 		if err != nil {
 			log.Println("Error creating file", erisBin, "Exiting...")
-			return "", err
+			return "", nil, err
 		}
 	}
 	defer output.Close()
-
-	fileResponse, err := http.Get(fileURL)
-	if err != nil {
-		return "", fmt.Errorf("error getting file: %v\n", err)
-	}
-	defer fileResponse.Body.Close()
-
-	_, err = io.Copy(output, fileResponse.Body)
-	if err != nil {
-		return "", fmt.Errorf("error saving file: %v\n", err)
-	}
-	erisLoc, _ := exec.LookPath("eris")
-
-	// this is hacky !!!
-	if erisBin != "" {
-		log.Println("downloaded eris binary", version, "for", platform, "to", erisBin, "\n Please manually move to", erisLoc)
-	} else {
-		log.Println("downloaded eris binary", version, "for", platform, "to", erisLoc)
-	}
-
-	// TODO fix this part!
-	var unzip string = "tar -xvf"
-	if platform != "linux" {
-		unzip = "unzip"
-	}
-	cmd := exec.Command("bin/sh", "-c", unzip, filename)
-	if err := cmd.Run(); err != nil {
-		return filename, fmt.Errorf("unzipping failed: %v\n", err)
-	}
-	// end fix needed
-	return filename, nil
+	return erisBin, output, nil
 }

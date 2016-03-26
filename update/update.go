@@ -23,7 +23,6 @@ func UpdateEris(do *definitions.Do) error {
 	// TODO check flags!
 
 	if whichEris == "go" {
-		fmt.Println("YOOO")
 		hasGit, hasGo := util.CheckGitAndGo(true, true)
 		if !hasGit || !hasGo {
 			return fmt.Errorf("either git or go is not installed. both are required for non-binary update")
@@ -53,17 +52,17 @@ func GoOrBinary() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// out is a path
+
 	toCheck := strings.Split(string(which), "/")
 	length := len(toCheck)
 	usr := toCheck[length-3]
 	bin := util.TrimString(toCheck[length-2])
 	eris := util.TrimString(toCheck[length-1]) //sometimes ya just gotta trim
 
-	tog := filepath.Join(os.Getenv("GOPATH"), bin, eris)
+	gopath := filepath.Join(os.Getenv("GOPATH"), bin, eris)
 
 	if bin == "bin" && eris == "eris" {
-		if util.TrimString(tog) == util.TrimString(string(which)) { // gotta trim those strings!
+		if util.TrimString(gopath) == util.TrimString(string(which)) { // gotta trim those strings!
 			log.Debug("looks like eris was instaled via go")
 			return "go", nil
 		} else if usr == "usr" { //binary check
