@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	//"github.com/eris-ltd/eris-cli/chains"
 	"github.com/eris-ltd/eris-cli/definitions"
 	"github.com/eris-ltd/eris-cli/files"
 	"github.com/eris-ltd/eris-cli/pkgs"
@@ -41,7 +40,29 @@ func StopAgent(do *definitions.Do) error {
 }
 
 func ListChains(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		var deets []*util.Details
 
+		deets = util.ErisContainersByType(definitions.TypeChain, true)
+		names := make([]string, len(deets))
+		for i, chainName := range deets {
+			names[i] = chainName.ShortName
+		}
+
+		chainz := []string{}
+		lenChainz := len(names) - 1
+		for i, fmtName := range names {
+			if i == 0 {
+				chainz = append(chainz, "[ ")
+			}
+			if i == lenChainz {
+				chainz = append(chainz, fmt.Sprintf("\"%s\" ]", fmtName))
+				break
+			}
+			chainz = append(chainz, fmt.Sprintf("\"%s\", ", fmtName))
+		}
+		w.Write([]byte(strings.Join(chainz, "")))
+	}
 }
 
 func DownloadAgent(w http.ResponseWriter, r *http.Request) {
