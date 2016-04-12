@@ -34,10 +34,10 @@ func UpdateErisGo(do *definitions.Do) error {
 	log.WithField("=>", ver).Warn("The marmots have updated Eris successfully")
 	return nil
 }
-
-func UpdateErisBinary() error {
+// hacky; fix !
+func UpdateErisBinary(binPath string) error {
 	ChangeDirectory("bin")
-	_, err := DownloadLatestBinaryRelease()
+	_, err := DownloadLatestBinaryRelease(binPath)
 	return err
 }
 

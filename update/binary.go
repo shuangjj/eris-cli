@@ -10,55 +10,65 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/eris-ltd/eris-cli/definitions"
+	"github.com/eris-ltd/eris-cli/data"
+	"github.com/eris-ltd/eris-cli/services"
+	"github.com/eris-ltd/eris-cli/perform"
+
 	log "github.com/eris-ltd/eris-cli/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/eris-ltd/eris-cli/Godeps/_workspace/src/github.com/eris-ltd/common/go/common"
 )
 
-func CheckoutBranch(branch string) {
-	checkoutArgs := []string{"checkout", branch}
+func BuildErisBinContainer(branch, binaryPath string) error {
+	// base built locally from quay.io/eris/base because parsing error...?
+	dockerfile := `FROM base
+MAINTAINER Eris Industries <support@erisindustries.com>
 
-	stdOut, err := exec.Command("git", checkoutArgs...).CombinedOutput()
-	if err != nil {
-		log.WithField("branch", branch).Fatalf("Error checking out branch: %v", string(stdOut))
+ENV NAME         eris-cli
+ENV REPO 	 eris-ltd/$NAME
+ENV BRANCH       ` + branch + `
+ENV CLONE_PATH   $GOPATH/src/github.com/eris-ltd/eris-cli
+
+RUN mkdir --parents $CLONE_PATH
+
+RUN git clone -q https://github.com/$REPO $CLONE_PATH
+RUN cd $CLONE_PATH && git checkout -q $BRANCH
+RUN cd $CLONE_PATH/cmd/eris && go build -o $INSTALL_BASE/eris
+
+CMD ["/bin/bash"]`
+
+	//log.Warn(dockerfile)
+	if err := perform.DockerBuild(dockerfile); err != nil {
+		return err
+	}
+	
+	doUpdate := definitions.NowDo()
+	doUpdate.Operations.Args = []string{"update"}
+	
+	if err := services.StartService(doUpdate); err != nil {
+		return nil
 	}
 
-	log.WithField("branch", branch).Debug("Branch checked-out")
-}
+	doCp := definitions.NowDo()
+	doCp.Name = "update"
 
-func PullBranch(branch string) {
-	pullArgs := []string{"pull", "origin", branch}
-
-	stdOut, err := exec.Command("git", pullArgs...).CombinedOutput()
-	if err != nil {
-		log.Fatalf("Error pulling from GitHub: %v", string(stdOut))
+	//$INSTALL_BASE/eris
+	doCp.Source = "/usr/local/bin/eris"
+	doCp.Destination = binaryPath
+	if err := data.ExportData(doCp); err != nil {
+		return err
 	}
 
-	log.WithField("branch", branch).Debug("Branch pulled successfully")
+	return nil
 }
 
-func InstallErisGo() {
-	goArgs := []string{"install", "./cmd/eris"}
 
-	stdOut, err := exec.Command("go", goArgs...).CombinedOutput()
-	if err != nil {
-		log.Fatalf("Error with go install ./cmd/eris: %v", string(stdOut))
-	}
 
-	log.Debug("go install worked correctly")
-}
-
-func version() string {
-	verArgs := []string{"version"}
-
-	stdOut, err := exec.Command("eris", verArgs...).CombinedOutput()
-	if err != nil {
-		log.Fatalf("error getting version:\n%s\n", string(stdOut))
-	}
-	return string(stdOut)
-
-}
-
-func DownloadLatestBinaryRelease() (string, error) {
+// XXX code below is ~ replaced by code above. 
+// left here for legacy reasons / is a complementary
+// approach to the build container that we may want
+// to consider ... ?
+func DownloadLatestBinaryRelease(binPath string) (string, error) {
 
 	filename, fileURL, version, err := getLatestBinaryInfo()
 
@@ -74,17 +84,13 @@ func DownloadLatestBinaryRelease() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error saving file: %v\n", err)
 	}
-	erisLoc, err := exec.LookPath("eris")
-	if err != nil {
-		return "", err
-	}
 
 	platform := runtime.GOOS
 	// this is hacky !!!
 	if erisBin != "" {
-		log.Println("downloaded eris binary", version, "for", platform, "to", erisBin, "\n Please manually move to", erisLoc)
+		log.Println("downloaded eris binary", version, "for", platform, "to", erisBin, "\n Please manually move to", binPath)
 	} else {
-		log.Println("downloaded eris binary", version, "for", platform, "to", erisLoc)
+		log.Println("downloaded eris binary", version, "for", platform, "to", binPath)
 	}
 
 	// TODO fix this part!
