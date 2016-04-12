@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/eris-ltd/eris-cli/definitions"
+	"github.com/eris-ltd/eris-cli/services"
 	"github.com/eris-ltd/eris-cli/util"
 	"github.com/eris-ltd/eris-cli/perform"
 
@@ -73,10 +74,18 @@ RUN cd $CLONE_PATH/cmd/eris && go build -o $INSTALL_BASE/eris
 
 CMD ["/bin/bash"]`
 
-	log.Warn(dockerfile)
+	//log.Warn(dockerfile)
 	if err := perform.DockerBuild(dockerfile); err != nil {
 		return err
 	}
+	
+	doUpdate := definitions.NowDo()
+	doUpdate.Operations.Args = []string{"update"}
+	
+	if err := services.StartService(doUpdate); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
