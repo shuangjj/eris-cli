@@ -4,6 +4,7 @@ import (
 	"github.com/eris-ltd/eris-cli/update"
 
 	"github.com/spf13/cobra"
+	. "github.com/eris-ltd/common/go/common"
 )
 
 var Update = &cobra.Command{
@@ -35,5 +36,5 @@ func addUpdateFlags() {
 
 func UpdateTool(cmd *cobra.Command, args []string) {
 	//arg check?
-	update.UpdateEris(do)
+	IfExit(update.UpdateEris(do))
 }

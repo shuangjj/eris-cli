@@ -650,7 +650,7 @@ func DockerRemoveImage(name string, force bool) error {
 }
 
 // TODO (explainer)
-func DockerBuild(dockerfile string) error {
+func DockerBuild(imageName, dockerfile string) error {
 	// below has been hacked from : https://godoc.org/github.com/fsouza/go-dockerclient#Client.BuildImage
 	// and could probably be much more elegant
 	t := time.Now()
@@ -667,7 +667,7 @@ func DockerBuild(dockerfile string) error {
 
 	r, w := io.Pipe()
 	imgOpts := docker.BuildImageOptions{
-		Name: "eris/update/temp",
+		Name: imageName,
 		//Dockerfile: dockerfile,
 		RmTmpContainer: false,
 		InputStream: inputbuf,
@@ -689,11 +689,6 @@ func DockerBuild(dockerfile string) error {
 	if err, ok := <-ch; ok {
 		return err
 	}
-
-
-//	log.Warn("about to build image...")
-//	log.Warn("DAFUQ")
-//	log.Warn(fmt.Sprintf("Error: %v", err))
 
 	return nil
 }

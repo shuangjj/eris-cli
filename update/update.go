@@ -16,15 +16,10 @@ import (
 
 func UpdateEris(do *definitions.Do) error {
 	// TODO organize code appropriately
-	// implement binPath
-	// deduplicate LookPAth
-	// kill service/data containers after build
-	// figure out servDef implementation rather than current hack
 	// clean up dockerfile => deal with `FROM` parsing error! or file issue...?
 	// do good loggers
 	// think of a test ...?
 	// finish implementing / test the branch/commit/version thingy
-
 
 	whichEris, binPath, err := GoOrBinary()
 	if err != nil {
@@ -32,15 +27,16 @@ func UpdateEris(do *definitions.Do) error {
 	}
 	// TODO check flags!
 
-	if whichEris == "go" {
+	if whichEris == "binary" {
 		hasGit, hasGo := CheckGitAndGo(true, true)
 		if !hasGit || !hasGo {
 			return fmt.Errorf("either git or go is not installed. both are required for non-binary update")
 		}
+		log.WithField("branch", do.Branch).Warn("Building eris binary via go with:")
 		if err := UpdateErisGo(do); err != nil {
 			return err
 		}
-	} else if whichEris == "binary" {
+	} else if whichEris == "go" {
 		log.WithField("branch", do.Branch).Warn("Building eris binary in container with:")
 		if err := BuildErisBinContainer(do.Branch, binPath); err != nil {
 			return err
@@ -81,8 +77,9 @@ func GoOrBinary() (string, string, error) {
 		return "", "",  err
 	}
 
-	if string(which) != erisLook {
-		return "", "", fmt.Errorf("`which eris` returned (%s) while the exec.LookPath(`eris`) command returned (%s). these need to match", string(which), erisLook)
+	trimWhich := util.TrimString(string(which))
+	if trimWhich != erisLook {
+		return "", "", fmt.Errorf("`which eris` returned (%s) while the exec.LookPath(`eris`) command returned (%s). these need to match", trimWhich, erisLook)
 	}
 
 	if bin == "bin" && eris == "eris" {

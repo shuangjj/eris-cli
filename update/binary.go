@@ -21,30 +21,40 @@ import (
 
 func BuildErisBinContainer(branch, binaryPath string) error {
 	// base built locally from quay.io/eris/base because parsing error...?
-	dockerfile := `FROM base
+	base := "base"
+	dockerfile := `FROM` + base + `
 MAINTAINER Eris Industries <support@erisindustries.com>
 
 ENV NAME         eris-cli
 ENV REPO 	 eris-ltd/$NAME
 ENV BRANCH       ` + branch + `
-ENV CLONE_PATH   $GOPATH/src/github.com/eris-ltd/eris-cli
+ENV CLONE_PATH   $GOPATH/src/github.com/$REPO
 
 RUN mkdir --parents $CLONE_PATH
 
 RUN git clone -q https://github.com/$REPO $CLONE_PATH
-RUN cd $CLONE_PATH && git checkout -q $BRANCH
+RUN cd $CLONE_PATH && git fetch -a origin &&  git checkout -q $BRANCH
 RUN cd $CLONE_PATH/cmd/eris && go build -o $INSTALL_BASE/eris
 
 CMD ["/bin/bash"]`
 
-	//log.Warn(dockerfile)
-	if err := perform.DockerBuild(dockerfile); err != nil {
+	log.Debug("building with dockerfile:")
+	log.Debug(dockerfile)
+	image := "eris/update:temp"
+	if err := perform.DockerBuild(image, dockerfile); err != nil {
 		return err
 	}
-	
+
+	doNew := definitions.NowDo()
+	doNew.Name = "update"
+	doNew.Operations.Args[0] = image
+	if err := services.NewService(doNew); err != nil {
+		return err
+	}
+
 	doUpdate := definitions.NowDo()
 	doUpdate.Operations.Args = []string{"update"}
-	
+
 	if err := services.StartService(doUpdate); err != nil {
 		return nil
 	}
@@ -54,8 +64,20 @@ CMD ["/bin/bash"]`
 
 	//$INSTALL_BASE/eris
 	doCp.Source = "/usr/local/bin/eris"
-	doCp.Destination = binaryPath
+	doCp.Destination = common.ScratchPath
 	if err := data.ExportData(doCp); err != nil {
+		return err
+	}
+	// XXX move bin from scratch to binaryPath
+
+	doRm := definitions.NowDo()
+	doRm.Operations.Args[0] = "update"
+	doRm.RmD = true
+	doRm.Volumes = true
+	doRm.Force = true
+	doRm.File = true
+
+	if err := services.RmService(doRm); err != nil {
 		return err
 	}
 

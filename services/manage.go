@@ -53,6 +53,7 @@ func NewService(do *definitions.Do) error {
 	srv.Name = do.Name
 	srv.Service.Name = do.Name
 	srv.Service.Image = do.Operations.Args[0]
+	// XXX [zr] this on by default is maybe not ideal
 	srv.Service.AutoData = true
 
 	var err error
