@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/eris-ltd/eris-cli/definitions"
+	"github.com/eris-ltd/eris-cli/data"
 	"github.com/eris-ltd/eris-cli/services"
 	"github.com/eris-ltd/eris-cli/util"
 	"github.com/eris-ltd/eris-cli/perform"
@@ -20,7 +21,8 @@ func UpdateEris(do *definitions.Do) error {
 	
 	log.Warn("building eris bin container with branch:")
 	log.Warn(do.Branch)
-	if err := BuildErisBinContainer(do.Branch); err != nil {
+	binPath := "" //get from stuff below
+	if err := BuildErisBinContainer(do.Branch, binPath); err != nil {
 		return err
 	}
 
@@ -55,7 +57,7 @@ func UpdateEris(do *definitions.Do) error {
 	return nil
 }
 
-func BuildErisBinContainer(branch string) error {
+func BuildErisBinContainer(branch, binaryPath string) error {
 	// quay.io does not parse!
 	//dTest := fmt.Sprintf("FROM base\nMAINTAINER Eris Industries <support@erisindustries.com>\n")
 	dockerfile := `FROM base
@@ -84,6 +86,16 @@ CMD ["/bin/bash"]`
 	
 	if err := services.StartService(doUpdate); err != nil {
 		return nil
+	}
+
+	doCp := definitions.NowDo()
+	doCp.Name = "update"
+
+	//$INSTALL_BASE/eris
+	doCp.Source = "/usr/local/bin/eris"
+	doCp.Destination = binaryPath
+	if err := data.ExportData(doCp); err != nil {
+		return err
 	}
 
 	return nil
