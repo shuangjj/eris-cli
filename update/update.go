@@ -18,7 +18,15 @@ import (
 )
 
 func UpdateEris(do *definitions.Do) error {
-	
+	// TODO organize code appropriately
+	// implement binPath
+	// kill service/data containers after build
+	// figure out servDef implementation rather than current hack
+	// clean up dockerfile => deal with `FROM` parsing error! or file issue...?
+	// do good loggers
+	// think of a test ...?
+	// finish implementing / test the branch/commit/version thingy
+
 	log.Warn("building eris bin container with branch:")
 	log.Warn(do.Branch)
 	binPath := "" //get from stuff below
@@ -58,8 +66,8 @@ func UpdateEris(do *definitions.Do) error {
 }
 
 func BuildErisBinContainer(branch, binaryPath string) error {
-	// quay.io does not parse!
 	//dTest := fmt.Sprintf("FROM base\nMAINTAINER Eris Industries <support@erisindustries.com>\n")
+	// base built locally from quay.io/eris/base because parsing error...?
 	dockerfile := `FROM base
 MAINTAINER Eris Industries <support@erisindustries.com>
 
