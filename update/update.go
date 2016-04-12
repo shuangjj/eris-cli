@@ -21,13 +21,13 @@ func UpdateEris(do *definitions.Do) error {
 	// think of a test ...?
 	// finish implementing / test the branch/commit/version thingy
 
-	whichEris, binPath, err := GoOrBinary()
+	_, binPath, err := GoOrBinary()
 	if err != nil {
 		return err
 	}
 	// TODO check flags!
 
-	if whichEris == "binary" {
+	/*if whichEris == "go" {
 		hasGit, hasGo := CheckGitAndGo(true, true)
 		if !hasGit || !hasGo {
 			return fmt.Errorf("either git or go is not installed. both are required for non-binary update")
@@ -36,18 +36,18 @@ func UpdateEris(do *definitions.Do) error {
 		if err := UpdateErisGo(do); err != nil {
 			return err
 		}
-	} else if whichEris == "go" {
-		log.WithField("branch", do.Branch).Warn("Building eris binary in container with:")
-		if err := BuildErisBinContainer(do.Branch, binPath); err != nil {
-			return err
-		}
+	} else if whichEris == "binary" {*/
+	log.WithField("branch", do.Branch).Warn("Building eris binary in container with:")
+	if err := BuildErisBinContainer(do.Branch, binPath); err != nil {
+		return err
+	}
 		// XXX deprecate ... ?
 		//if err := UpdateErisBinary(binPath); err != nil {
 		//	return err
 		//}
-	} else {
-		return fmt.Errorf("The marmots could not figure out how eris was installed")
-	}
+	//} else {
+	//	return fmt.Errorf("The marmots could not figure out how eris was installed")
+	//}
 
 	//checks for deprecated dir names and renames them
 	// false = no prompt

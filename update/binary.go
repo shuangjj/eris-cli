@@ -22,7 +22,7 @@ import (
 func BuildErisBinContainer(branch, binaryPath string) error {
 	// base built locally from quay.io/eris/base because parsing error...?
 	base := "base"
-	dockerfile := `FROM` + base + `
+	dockerfile := `FROM ` + base + `
 MAINTAINER Eris Industries <support@erisindustries.com>
 
 ENV NAME         eris-cli
@@ -47,7 +47,7 @@ CMD ["/bin/bash"]`
 
 	doNew := definitions.NowDo()
 	doNew.Name = "update"
-	doNew.Operations.Args[0] = image
+	doNew.Operations.Args  = []string{image}
 	if err := services.NewService(doNew); err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ CMD ["/bin/bash"]`
 	// XXX move bin from scratch to binaryPath
 
 	doRm := definitions.NowDo()
-	doRm.Operations.Args[0] = "update"
+	doRm.Operations.Args = []string{"update"}
 	doRm.RmD = true
 	doRm.Volumes = true
 	doRm.Force = true
