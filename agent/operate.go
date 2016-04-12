@@ -21,7 +21,7 @@ import (
 func StartAgent(do *definitions.Do) error {
 	// unknown: auth details/https
 	mux := http.NewServeMux()
-	mux.HandleFunc("/listChains", ListChains)
+	mux.HandleFunc("/chains", ListChains)
 	mux.HandleFunc("/download", DownloadAgent)
 	mux.HandleFunc("/install", InstallAgent)
 	fmt.Println("Starting mux agent on localhost:17552")
@@ -53,13 +53,13 @@ func ListChains(w http.ResponseWriter, r *http.Request) {
 		lenChainz := len(names) - 1
 		for i, fmtName := range names {
 			if i == 0 {
-				chainz = append(chainz, "[ ")
+				chainz = append(chainz, "[")
 			}
 			if i == lenChainz {
-				chainz = append(chainz, fmt.Sprintf("\"%s\" ]", fmtName))
+				chainz = append(chainz, fmt.Sprintf("{ name: '%s' }]", fmtName))
 				break
 			}
-			chainz = append(chainz, fmt.Sprintf("\"%s\", ", fmtName))
+			chainz = append(chainz, fmt.Sprintf("{ name: '%s' }, ", fmtName))
 		}
 		w.Write([]byte(strings.Join(chainz, "")))
 	}
