@@ -658,9 +658,9 @@ func DockerBuild(imageName, dockerfile string) error {
 	writer := os.Stdout
 	//inputbuf, outputbuf := bytes.NewBuffer(nil), bytes.NewBuffer(nil)
 	tr := tar.NewWriter(inputbuf)
-	//toWrite := "FROM base\nMAINTAINER Eris Industries <support@erisindustries.com>\nRUN mkdir -p fuck"
-	size := len([]byte(dockerfile))
-	tr.WriteHeader(&tar.Header{Name: "Dockerfile", Size: int64(size), ModTime: t, AccessTime: t, ChangeTime: t})
+	size := int64(len([]byte(dockerfile)))
+	//this next line could also be finessed
+	tr.WriteHeader(&tar.Header{Name: "Dockerfile", Size: size, ModTime: t, AccessTime: t, ChangeTime: t})
 	tr.Write([]byte(dockerfile))
 	tr.Close()
 	//picked only what's necessary for now: this may change with #611

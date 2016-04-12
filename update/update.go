@@ -15,8 +15,6 @@ import (
 )
 
 func UpdateEris(do *definitions.Do) error {
-	// TODO organize code appropriately
-	// clean up dockerfile => deal with `FROM` parsing error! or file issue...?
 	// do good loggers
 	// think of a test ...?
 	// finish implementing / test the branch/commit/version thingy

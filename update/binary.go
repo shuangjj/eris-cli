@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/eris-ltd/eris-cli/data"
 	"github.com/eris-ltd/eris-cli/services"
 	"github.com/eris-ltd/eris-cli/perform"
+	ver "github.com/eris-ltd/eris-cli/version"
 
 	log "github.com/eris-ltd/eris-cli/Godeps/_workspace/src/github.com/Sirupsen/logrus"
 	"github.com/eris-ltd/eris-cli/Godeps/_workspace/src/github.com/eris-ltd/common/go/common"
@@ -21,7 +23,7 @@ import (
 
 func BuildErisBinContainer(branch, binaryPath string) error {
 	// base built locally from quay.io/eris/base because parsing error...?
-	base := "base"
+	base := path.Join(ver.ERIS_REG_DEF, ver.ERIS_IMG_BASE)
 	dockerfile := `FROM ` + base + `
 MAINTAINER Eris Industries <support@erisindustries.com>
 
@@ -38,16 +40,18 @@ RUN cd $CLONE_PATH/cmd/eris && go build -o $INSTALL_BASE/eris
 
 CMD ["/bin/bash"]`
 
+	imageName := "eris/update:temp"
 	log.Debug("building with dockerfile:")
 	log.Debug(dockerfile)
-	image := "eris/update:temp"
-	if err := perform.DockerBuild(image, dockerfile); err != nil {
+	log.Debug("IMAGE NAME:")
+	log.Debug(imageName)
+	if err := perform.DockerBuild(imageName, dockerfile); err != nil {
 		return err
 	}
 
 	doNew := definitions.NowDo()
 	doNew.Name = "update"
-	doNew.Operations.Args  = []string{image}
+	doNew.Operations.Args  = []string{imageName}
 	if err := services.NewService(doNew); err != nil {
 		return err
 	}
@@ -80,6 +84,8 @@ CMD ["/bin/bash"]`
 	if err := services.RmService(doRm); err != nil {
 		return err
 	}
+
+	//TODO remove imageName the image
 
 	return nil
 }
