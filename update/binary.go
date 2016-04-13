@@ -41,10 +41,8 @@ RUN cd $CLONE_PATH/cmd/eris && go build -o $INSTALL_BASE/eris
 CMD ["/bin/bash"]`
 
 	imageName := "eris/update:temp"
-	log.Debug("building with dockerfile:")
-	log.Debug(dockerfile)
-	log.Debug("IMAGE NAME:")
-	log.Debug(imageName)
+	//log.Debug(dockerfile)
+	//log.Debug(imageName)
 	if err := perform.DockerBuild(imageName, dockerfile); err != nil {
 		return err
 	}
@@ -86,6 +84,9 @@ CMD ["/bin/bash"]`
 	}
 
 	//TODO remove imageName the image
+	if err := perform.DockerRemoveImage(imageName, true); err != nil {
+		return err
+	}
 
 	return nil
 }
