@@ -1,16 +1,14 @@
 package update
 
 import (
-	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/eris-ltd/common/go/common"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/eris-ltd/eris-cli/definitions"
+	
+	log "github.com/Sirupsen/logrus"
+	"github.com/eris-ltd/common/go/common"
 )
 
 func UpdateErisGo(do *definitions.Do) error {
