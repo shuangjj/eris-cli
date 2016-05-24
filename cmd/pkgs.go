@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/eris-ltd/eris-cli/pkgs"
-	"github.com/eris-ltd/eris-cli/version"
+	_ "github.com/eris-ltd/eris-cli/version"
 
 	. "github.com/eris-ltd/common/go/common"
 
@@ -113,7 +113,8 @@ func PackagesDo(cmd *cobra.Command, args []string) {
 }
 
 func formCompilers() string {
-	verSplit := strings.Split(version.VERSION, ".")
+	working_compiler_version := "0.11.3"
+	verSplit := strings.Split(working_compiler_version, ".")
 	maj, _ := strconv.Atoi(verSplit[0])
 	min, _ := strconv.Atoi(verSplit[1])
 	pat, _ := strconv.Atoi(verSplit[2])
