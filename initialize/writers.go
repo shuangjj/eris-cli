@@ -173,14 +173,13 @@ func drops(files []string, typ, dir, from string) error {
 		repo = "eris-chains"
 	}
 	// on different arch
-	var gitOrg string
-	var archPrefix string
+	archPrefix := ""
+	gitOrg := "eris-ltd"
 	if runtime.GOARCH == "arm" {
-		gitOrg = "shuangjj"
-		archPrefix = "arch/arm/"
-	} else {
-		gitOrg = "eris-ltd"
-		archPrefix = ""
+		if repo != "eris-actions" {
+			gitOrg = "shuangjj"
+			archPrefix = "arch/arm/"
+		}
 	}
 
 	if !util.DoesDirExist(dir) {
