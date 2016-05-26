@@ -1,3 +1,5 @@
+// +build !alpine
+
 package version
 
 import (
