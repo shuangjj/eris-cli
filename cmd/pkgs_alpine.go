@@ -1,4 +1,4 @@
-// +build !arm,!alpine
+// +build !arm,alpine
 
 package commands
 
@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/eris-ltd/eris-cli/pkgs"
-	"github.com/eris-ltd/eris-cli/version"
+	_ "github.com/eris-ltd/eris-cli/version"
 
 	. "github.com/eris-ltd/common/go/common"
 
@@ -115,7 +115,7 @@ func PackagesDo(cmd *cobra.Command, args []string) {
 }
 
 func formCompilers() string {
-	verSplit := strings.Split(version.VERSION, ".")
+	verSplit := strings.Split("0.11.3", ".")
 	maj, _ := strconv.Atoi(verSplit[0])
 	min, _ := strconv.Atoi(verSplit[1])
 	pat, _ := strconv.Atoi(verSplit[2])

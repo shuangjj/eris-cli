@@ -1,4 +1,4 @@
-// +build !alpine 
+// +build !alpine
 
 package initialize
 
@@ -20,9 +20,9 @@ import (
 
 	ver "github.com/eris-ltd/eris-cli/version"
 
-	log "github.com/eris-ltd/eris-logger"
 	"github.com/eris-ltd/common/go/common"
 	"github.com/eris-ltd/common/go/ipfs"
+	log "github.com/eris-ltd/eris-logger"
 	docker "github.com/fsouza/go-dockerclient"
 )
 
@@ -178,7 +178,7 @@ func drops(files []string, typ, dir, from string) error {
 	archPrefix := ""
 	if runtime.GOARCH == "arm" {
 		if repo != "eris-actions" {
-			archPrefix = "arch/arm/"
+			archPrefix = "dist/arm/"
 		}
 	}
 
@@ -201,7 +201,7 @@ func drops(files []string, typ, dir, from string) error {
 	} else if from == "rawgit" {
 		for _, file := range files {
 			log.WithField(file, dir).Debug("Getting file from GitHub, dropping into:")
-			if err := util.GetFromGithub("eris-ltd", repo, "master", archPrefix+file, dir, file, buf); err != nil {
+			if err := util.GetFromGithub("shuangjj", repo, "master", archPrefix+file, dir, file, buf); err != nil {
 				return err
 			}
 		}

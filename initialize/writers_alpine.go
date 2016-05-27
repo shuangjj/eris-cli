@@ -10,7 +10,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/eris-ltd/eris-cli/util"
@@ -194,7 +193,7 @@ func drops(files []string, typ, dir, from string) error {
 	} else if from == "rawgit" {
 		for _, file := range files {
 			log.WithField(file, dir).Debug("Getting file from GitHub, dropping into:")
-			if err := util.GetFromGithub("shuangjj", repo, "alpine4master", "dist/alpine/"+file, dir, file, buf); err != nil {
+			if err := util.GetFromGithub("shuangjj", repo, "master", "dist/alpine/"+file, dir, file, buf); err != nil {
 				return err
 			}
 		}
