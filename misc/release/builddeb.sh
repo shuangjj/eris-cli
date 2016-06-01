@@ -22,13 +22,13 @@ echo
 gpg --import linux-public-key.asc
 gpg --import linux-private-key.asc
 
-export GOREPO=${GOPATH}/src/eris-ltd/eris-cli
-git clone https://github.com/eris-ltd/eris-cli ${GOREPO}
+export GOREPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
+git clone https://github.com/${BUILDER_GH_ACCOUNT}/eris-cli ${GOREPO}
 pushd ${GOREPO}/cmd/eris
 git fetch origin ${ERIS_BRANCH}
 git checkout ${ERIS_BRANCH}
 echo
-echo ">>> Building the Eris binary"
+echo ">>> Building the Eris binary [${ERIS_BRANCH}@${BUILDER_GH_ACCOUNT}]"
 echo
 go get
 go build
@@ -43,7 +43,7 @@ cat > deb/DEBIAN/control <<EOF
 Package: eris
 Version: ${ERIS_VERSION}-${ERIS_RELEASE}
 Section: devel
-Architecture: amd64
+Architecture: ${BUILDER_ARCH}
 Priority: standard
 Homepage: https://docs.erisindustries.com
 Maintainer: Eris Industries <support@erisindustries.com>
@@ -62,8 +62,10 @@ Copyright: $(date +%Y) Eris Industries, Ltd. <support@erisindustries.com>
 License: GPL-3
 EOF
 dpkg-deb --build deb
-PACKAGE=eris_${ERIS_VERSION}-${ERIS_RELEASE}_amd64.deb
+PACKAGE=eris_${ERIS_VERSION}-${ERIS_RELEASE}_${BUILDER_ARCH}.deb
 mv deb.deb ${PACKAGE}
+
+exit 0
 
 echo
 echo ">>> Copying Debian packages to Amazon S3"

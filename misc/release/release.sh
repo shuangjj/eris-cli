@@ -204,6 +204,49 @@ release_deb() {
   echo "Finished releasing Debian packages"
 }
 
+release_deb2() {
+  echo "Releasing Debian packages"
+  shift
+  mkdir -p ${BUILD_DIR}
+
+  if [ ! -z "$@" ]
+  then
+    ERIS_RELEASE="$@"
+  fi
+
+  docker rm -f builddeb &>/dev/null
+  BUILDER_ARCH=$(dpkg --print-architecture)
+  BUILDER_GH_ACCOUNT="eris-ltd"
+  DF="Dockerfile-deb"
+
+  if [ ${BUILDER_ARCH} = "armhf" ]
+  then
+    BUILDER_GH_ACCOUNT="shuangjj"
+    DF="Dockerfile-arm-deb"
+  fi
+
+  docker build --no-cache -f ${REPO}/misc/release/$DF -t builddeb ${REPO}/misc/release \
+  && docker run \
+    -t \
+    --name builddeb \
+    -e ERIS_VERSION=${ERIS_VERSION} \
+    -e ERIS_RELEASE=${ERIS_RELEASE} \
+    -e BUILDER_ARCH=${BUILDER_ARCH} \
+    -e BUILDER_GH_ACCOUNT=${BUILDER_GH_ACCOUNT} \
+    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
+    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    -e AWS_S3_RPM_REPO=${AWS_S3_RPM_REPO} \
+    -e AWS_S3_RPM_PACKAGES=${AWS_S3_RPM_PACKAGES} \
+    -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
+    -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
+    -e KEY_NAME="${KEY_NAME}" \
+    -e KEY_PASSWORD="${KEY_PASSWORD}" \
+    builddeb "$@" \
+  && docker cp builddeb:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_$BUILDER_ARCH.deb ${BUILD_DIR} \
+  && docker rm -f builddeb
+  echo "Finished releasing Debian packages"
+}
+
 release_rpm() {
   echo "Releasing RPM packages"
   shift
@@ -278,6 +321,9 @@ main() {
     ;;
   help|-h|--help)
     usage "$@"
+    ;;
+  arm-release)
+    release_deb2 "$@"
     ;;
   *)
     pre_check "$@"
