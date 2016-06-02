@@ -82,10 +82,10 @@ secret_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
     s3cmd put ${PACKAGE} s3://${AWS_S3_DEB_PACKAGES}
 
-    if [ "$ERIS_BRANCH" != "master" ]
+    if [ "$ERIS_BRANCH" != "master" ] && [ "${CROSSPKG_ARCH}" != "armhf" ]
     then
        echo
-       echo ">>> Not recreating a repo for #${ERIS_BRANCH} branch"
+       echo ">>> Not recreating a repo for #${ERIS_BRANCH} branch on ${CROSSPKG_ARCH}"
        echo
        exit 0
     fi
@@ -109,7 +109,7 @@ EOF
 Origin: Eris Industries <support@erisindustries.com>
 Codename: ${distro}
 Components: main
-Architectures: i386 amd64
+Architectures: i386 amd64 armhf
 SignWith: $(gpg --keyid-format=long --list-keys --with-colons|fgrep "${KEY_NAME}"|cut -d: -f5)
 
 EOF
