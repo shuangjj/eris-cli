@@ -152,7 +152,7 @@ EOF
     echo ">>> Installation instructions"
     echo
     echo "  \$ curl https://${AWS_S3_DEB_REPO}.s3.amazonaws/APT-GPG-KEY | apt-key add -"
-    echo "  \$ echo \"deb https://eris-deb-repo.s3.amazonaws.com DIST main\" > /etc/apt/sources.list.d"
+    echo "  \$ echo \"deb https://eris-deb-repo.s3.amazonaws.com DIST main\" > /etc/apt/sources.list.d/eris.list"
     echo
     echo "  \$ apt-get update"
     echo "  \$ apt-get install eris"
