@@ -206,44 +206,79 @@ release_deb() {
 
 release_deb2() {
   echo "Releasing Debian packages"
+  if [ "$1" = "debs-local" ] 
+  then
+    AWS_S3="no"
+  fi
   shift
   mkdir -p ${BUILD_DIR}
 
-  if [ ! -z "$@" ]
-  then
-    ERIS_RELEASE="$@"
-  fi
+  archbranches=("$@")
+  for ab in ${archbranches[@]}
+  do
+      set $(echo $ab | sed -e 's/:/ /g')
+      arch=$1
+      branch=$2
+      if [ ! -z "$branch" ] && [ "$branch" != "master" ] 
+      then
+        erisrelease=$branch
+      else
+        erisrelease=${ERIS_RELEASE}
+      fi 
 
-  docker rm -f builddeb &>/dev/null
-  BUILDER_ARCH=$(dpkg --print-architecture)
-  BUILDER_GH_ACCOUNT="eris-ltd"
-  DF="Dockerfile-deb"
-
-  if [ ${BUILDER_ARCH} = "armhf" ]
-  then
-    BUILDER_GH_ACCOUNT="shuangjj"
-    DF="Dockerfile-arm-deb"
-  fi
-
-  docker build --no-cache -f ${REPO}/misc/release/$DF -t builddeb ${REPO}/misc/release \
-  && docker run \
-    -t \
-    --name builddeb \
-    -e ERIS_VERSION=${ERIS_VERSION} \
-    -e ERIS_RELEASE=${ERIS_RELEASE} \
-    -e BUILDER_ARCH=${BUILDER_ARCH} \
-    -e BUILDER_GH_ACCOUNT=${BUILDER_GH_ACCOUNT} \
-    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
-    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
-    -e AWS_S3_RPM_REPO=${AWS_S3_RPM_REPO} \
-    -e AWS_S3_RPM_PACKAGES=${AWS_S3_RPM_PACKAGES} \
-    -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
-    -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
-    -e KEY_NAME="${KEY_NAME}" \
-    -e KEY_PASSWORD="${KEY_PASSWORD}" \
-    builddeb "$@" \
-  && docker cp builddeb:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_$BUILDER_ARCH.deb ${BUILD_DIR} \
-  && docker rm -f builddeb
+      echo
+      echo "Start building eris deb package on $arch of release $erisrelease"
+      echo 
+      docker rm -f builddeb &>/dev/null
+      # GOARCH examples: amd64, arm, 386
+      # Debian arch examples: amd64, x86_64, i386, armhf
+      case "$arch" in
+          armhf)
+            CROSSPKG_GH_ACCOUNT="shuangjj"
+            CROSSPKG_ARCH="armhf"
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="arm"
+            ;;
+          amd64 | x86_64)
+            CROSSPKG_GH_ACCOUNT="eris-ltd"
+            CROSSPKG_ARCH=$arch
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="amd64"
+            ;;
+          i386)
+            CROSSPKG_GH_ACCOUNT="eris-ltd"
+            CROSSPKG_ARCH=$arch
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="386"
+            ;;
+          *)
+            echo "Unsupported architecture $arch"
+            exit 1
+            ;;
+      esac
+      docker build -f ${REPO}/misc/release/Dockerfile-deb -t builddeb ${REPO}/misc/release \
+      && docker run \
+        -t \
+        --name builddeb \
+        -e ERIS_VERSION=${ERIS_VERSION} \
+        -e ERIS_RELEASE=${erisrelease} \
+        -e CROSSPKG_GH_ACCOUNT=${CROSSPKG_GH_ACCOUNT} \
+        -e CROSSPKG_ARCH=${CROSSPKG_ARCH} \
+        -e CROSSPKG_GOOS=${CROSSPKG_GOOS} \
+        -e CROSSPKG_GOARCH=${CROSSPKG_GOARCH} \
+        -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
+        -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+        -e AWS_S3_RPM_REPO=${AWS_S3_RPM_REPO} \
+        -e AWS_S3_RPM_PACKAGES=${AWS_S3_RPM_PACKAGES} \
+        -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
+        -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
+        -e AWS_S3=${AWS_S3} \
+        -e KEY_NAME="${KEY_NAME}" \
+        -e KEY_PASSWORD="${KEY_PASSWORD}" \
+        builddeb "$branch" \
+      && docker cp builddeb:/root/eris_${ERIS_VERSION}-${erisrelease}_$CROSSPKG_ARCH.deb ${BUILD_DIR} \
+      && docker rm -f builddeb
+  done
   echo "Finished releasing Debian packages"
 }
 
@@ -297,6 +332,11 @@ usage() {
   echo "   release.sh rpm          publish RPM package and create YUM repo"
   echo "   release.sh deb develop  publish Debian package for the #develop branch"
   echo "   release.sh rpm develop  publish RPM package for the #develop branch"
+  echo "   release.sh debs-local [{arch:branch}...] build Debian package for multiple \
+      architecture and code branch pairs."
+  echo "   release.sh debs [{arch:branch}...] publish Debian package for multiple \
+      architecture and code branch pairs."
+
   echo
   exit 2
 }
@@ -319,11 +359,15 @@ main() {
     keys_check "$@"
     release_deb "$@"
     ;;
+  debs)
+    keys_check
+    release_deb2 "$@"
+    ;;
+  debs-local)
+    release_deb2 "$@"
+    ;;
   help|-h|--help)
     usage "$@"
-    ;;
-  arm-release)
-    release_deb2 "$@"
     ;;
   *)
     pre_check "$@"
