@@ -56,7 +56,12 @@
 #           ]
 #         }
 #
-REPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
+if [ -z "${WORKSPACE}" ]
+then
+  REPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
+else
+  REPO=${WORKSPACE}
+fi
 BUILD_DIR=${REPO}/builds
 ERIS_VERSION=$(grep -w VERSION ${REPO}/version/version.go | cut -d \  -f 4 | tr -d '"')
 ERIS_RELEASE=1
