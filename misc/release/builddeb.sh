@@ -16,6 +16,7 @@ if [ ! -z "$1" ]; then
   ERIS_BRANCH="$1"
 fi
 
+: ${CROSSPKG_GH_ACCOUNT:="eris-ltd"}
 : ${CROSSPKG_ARCH:="amd64"}
 : ${CROSSPKG_GOOS:="linux"}
 : ${CROSSPKG_GOARCH:="amd64"}

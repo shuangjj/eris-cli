@@ -120,6 +120,7 @@ cross_compile() {
   pushd ${REPO}/cmd/eris
   GOOS=linux   GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_386
   GOOS=linux   GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_amd64
+  GOOS=linux   GOARCH=arm    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_arm
   GOOS=darwin  GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_386
   GOOS=darwin  GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_amd64
   GOOS=windows GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_386.exe
@@ -206,7 +207,7 @@ release_deb() {
 
 release_deb2() {
   echo "Releasing Debian packages"
-  if [ "$1" = "debs-local" ] 
+  if [ "$1" = "debslocal" ] 
   then
     AWS_S3="no"
   fi
@@ -229,7 +230,6 @@ release_deb2() {
       echo
       echo "Start building eris deb package on $arch of release $erisrelease"
       echo 
-      docker rm -f builddeb &>/dev/null
       # GOARCH examples: amd64, arm, 386
       # Debian arch examples: amd64, x86_64, i386, armhf
       case "$arch" in
@@ -256,6 +256,8 @@ release_deb2() {
             exit 1
             ;;
       esac
+
+      docker rm -f builddeb &>/dev/null
       docker build -f ${REPO}/misc/release/Dockerfile-deb -t builddeb ${REPO}/misc/release \
       && docker run \
         -t \
@@ -276,7 +278,7 @@ release_deb2() {
         -e KEY_NAME="${KEY_NAME}" \
         -e KEY_PASSWORD="${KEY_PASSWORD}" \
         builddeb "$branch" \
-      && docker cp builddeb:/root/eris_${ERIS_VERSION}-${erisrelease}_$CROSSPKG_ARCH.deb ${BUILD_DIR} \
+      && docker cp builddeb:/root/eris_${ERIS_VERSION}-${erisrelease}_${CROSSPKG_ARCH}.deb ${BUILD_DIR} \
       && docker rm -f builddeb
   done
   echo "Finished releasing Debian packages"
@@ -322,20 +324,18 @@ usage() {
   echo "Usage: release.sh [pre|build|pkgs|rpm|deb|help]"
   echo "Release Eris CLI to Github. Publish Linux packages to Amazon S3"
   echo
-  echo "   release.sh              release #master"
-  echo "   release.sh pre          prerelease #master"
-  echo "   release.sh build        cross compile current branch "
-  echo "                           for all supported architectures"
-  echo "   release.sh pkgs         cross compile current branch"
-  echo "                           and publish Linux packages"
-  echo "   release.sh deb          publish Debian package and create APT repo"
-  echo "   release.sh rpm          publish RPM package and create YUM repo"
-  echo "   release.sh deb develop  publish Debian package for the #develop branch"
-  echo "   release.sh rpm develop  publish RPM package for the #develop branch"
-  echo "   release.sh debs-local [{arch:branch}...] build Debian package for multiple \
-      architecture and code branch pairs."
-  echo "   release.sh debs [{arch:branch}...] publish Debian package for multiple \
-      architecture and code branch pairs."
+  echo "   release.sh                              release #master"
+  echo "   release.sh pre                          prerelease #master"
+  echo "   release.sh build                        cross compile current branch "
+  echo "                                           for all supported architectures"
+  echo "   release.sh pkgs                         cross compile current branch"
+  echo "                                           and publish Linux packages"
+  echo "   release.sh deb                          publish Debian package and create APT repo"
+  echo "   release.sh rpm                          publish RPM package and create YUM repo"
+  echo "   release.sh deb develop                  publish Debian package for the #develop branch"
+  echo "   release.sh rpm develop                  publish RPM package for the #develop branch"
+  echo "   release.sh debs {arch:branch}...        publish Debian package for multiple architectures"
+  echo "   release.sh debslocal {arch:branch}...   build Debian package for multiple architectures"
 
   echo
   exit 2
@@ -363,7 +363,7 @@ main() {
     keys_check
     release_deb2 "$@"
     ;;
-  debs-local)
+  debslocal)
     release_deb2 "$@"
     ;;
   help|-h|--help)
