@@ -63,6 +63,9 @@ else
   REPO=${WORKSPACE}
 fi
 BUILD_DIR=${REPO}/builds
+RELEASE_DIR=${REPO}/releases
+RELEASE_DIR_MAIN=${RELEASE_DIR}/main/
+RELEASE_DIR_EXPERIMENTAL=${RELEASE_DIR}/experimental/
 ERIS_VERSION=$(grep -w VERSION ${REPO}/version/version.go | cut -d \  -f 4 | tr -d '"')
 ERIS_RELEASE=1
 # NOTE: Please, set these up before continuing:
@@ -71,8 +74,8 @@ ERIS_RELEASE=1
 # AWS_SECRET_ACCESS_KEY=
 AWS_S3_RPM_REPO=eris-rpm
 AWS_S3_RPM_PACKAGES=eris-rpm-files
-AWS_S3_DEB_REPO=eris-deb
-AWS_S3_DEB_PACKAGES=eris-deb-files
+AWS_S3_DEB_REPO=eris4iot/eris-deb/
+AWS_S3_DEB_PACKAGES=eris4iot/eris-deb-files/
 KEY_NAME="Eris Industries (DISTRIBUTION SIGNATURE MASTER KEY) <support@erisindustries.com>"
 KEY_PASSWORD="one1two!three"
 
@@ -210,30 +213,31 @@ release_deb() {
   echo "Finished releasing Debian packages"
 }
 
-release_deb2() {
-  echo "Releasing Debian packages"
-  if [ "$1" = "debslocal" ] 
-  then
-    AWS_S3="no"
-  fi
-  shift
+#-------------------------------------------------------------------------------
+# Build Debian packages and restore to ${REPO}/builds
+# @Input: build tuples as "ARCH:BRANCH:ACTION"... ACTION supports "build" and 
+#         "release". If "release", restore package to ${REPO}/releases
+#-------------------------------------------------------------------------------
+build_debs() {
+  echo ">>> Building Debian packages"
   mkdir -p ${BUILD_DIR}
-
-  archbranches=("$@")
-  for ab in ${archbranches[@]}
+  mkdir -p ${RELEASE_DIR_MAIN}
+  mkdir -p ${RELEASE_DIR_EXPERIMENTAL}
+  buildtuples=("$@")
+  for bt in ${buildtuples[@]}
   do
-      set $(echo $ab | sed -e 's/:/ /g')
-      arch=$1
-      branch=$2
+      #set $(echo $bt | sed -e 's/:/ /g')
+      local IFS=":"
+      set $bt; arch=$1; branch=$2; action=$3
       if [ ! -z "$branch" ] && [ "$branch" != "master" ] 
       then
-        erisrelease=$branch
+        releasedir=${RELEASE_DIR_EXPERIMENTAL}
       else
-        erisrelease=${ERIS_RELEASE}
+        releasedir=${RELEASE_DIR_MAIN}
       fi 
 
       echo
-      echo "Start building eris deb package on $arch of release $erisrelease"
+      echo "Start building eris deb"
       echo 
       # GOARCH examples: amd64, arm, 386
       # Debian arch examples: amd64, x86_64, i386, armhf
@@ -262,30 +266,56 @@ release_deb2() {
             ;;
       esac
 
-      docker rm -f builddeb &>/dev/null
-      docker build -f ${REPO}/misc/release/Dockerfile-deb -t builddeb ${REPO}/misc/release \
+      docker rm -f builddeb2 &>/dev/null
+      docker build -f ${REPO}/misc/release/builddeb2.df -t builddeb2img ${REPO}/misc/release &>/dev/null \
       && docker run \
         -t \
-        --name builddeb \
+        --name builddeb2 \
         -e ERIS_VERSION=${ERIS_VERSION} \
-        -e ERIS_RELEASE=${erisrelease} \
+        -e ERIS_RELEASE=${ERIS_RELEASE} \
         -e CROSSPKG_GH_ACCOUNT=${CROSSPKG_GH_ACCOUNT} \
-        -e CROSSPKG_ARCH=${CROSSPKG_ARCH} \
         -e CROSSPKG_GOOS=${CROSSPKG_GOOS} \
         -e CROSSPKG_GOARCH=${CROSSPKG_GOARCH} \
-        -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
-        -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
-        -e AWS_S3_RPM_REPO=${AWS_S3_RPM_REPO} \
-        -e AWS_S3_RPM_PACKAGES=${AWS_S3_RPM_PACKAGES} \
-        -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
-        -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
-        -e AWS_S3=${AWS_S3} \
-        -e KEY_NAME="${KEY_NAME}" \
-        -e KEY_PASSWORD="${KEY_PASSWORD}" \
-        builddeb "$branch" \
-      && docker cp builddeb:/root/eris_${ERIS_VERSION}-${erisrelease}_${CROSSPKG_ARCH}.deb ${BUILD_DIR} \
-      && docker rm -f builddeb
+        -e CROSSPKG_ARCH=${CROSSPKG_ARCH} \
+        builddeb2img "$branch" \
+      && docker cp builddeb2:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_${CROSSPKG_ARCH}.deb ${BUILD_DIR}
+      if [ "$action" = "release" ]
+      then
+        docker cp builddeb2:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_${CROSSPKG_ARCH}.deb ${releasedir}
+      fi
+      docker rm -f builddeb2
   done
+  echo "Finished building Debian packages"
+
+}
+
+s3_debs() {
+  mkdir -p ${BUILD_DIR}
+  mkdir -p ${RELEASE_DIR_MAIN} &>/dev/null
+  mkdir -p ${RELEASE_DIR_EXPERIMENTAL} &>/dev/null
+  build_debs $@
+
+  echo ">>> Releasing Debian packages"
+  docker rm -f releasedebs &>/dev/null
+  docker build -f ${REPO}/misc/release/releasedebs.df -t releasedebsimg ${REPO}/misc/release &>/dev/null \
+  && docker run \
+    -t \
+    --name releasedebs \
+    -e ERIS_VERSION=${ERIS_VERSION} \
+    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
+    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
+    -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
+    -e KEY_NAME="${KEY_NAME}" \
+    -e KEY_PASSWORD="${KEY_PASSWORD}" \
+    -e RELEASE_DIR_MAIN=/releases/main \
+    -e RELEASE_DIR_EXPERIMENTAL=/releases/experimental \
+    -v ${RELEASE_DIR_MAIN}:/releases/main \
+    -v ${RELEASE_DIR_EXPERIMENTAL}:/releases/experimental \
+    releasedebsimg \
+  && docker rm -f releasedebs \
+  && rm -r ${RELEASE_DIR}/*
+
   echo "Finished releasing Debian packages"
 }
 
@@ -339,8 +369,9 @@ usage() {
   echo "   release.sh rpm                          publish RPM package and create YUM repo"
   echo "   release.sh deb develop                  publish Debian package for the #develop branch"
   echo "   release.sh rpm develop                  publish RPM package for the #develop branch"
-  echo "   release.sh debs {arch:branch}...        publish Debian package for multiple architectures"
-  echo "   release.sh debslocal {arch:branch}...   build Debian package for multiple architectures"
+  echo "   release.sh builddebs buildtuple...      build Debian packages for multiple architectures"
+  echo "                                           buildtuple=(ARCH:BRANCH:ACTION), ACTION='release'/'build'"
+  echo "   release.sh s3debs buildtuple...         publish Debian packages for multiple architectures"
 
   echo
   exit 2
@@ -364,12 +395,14 @@ main() {
     keys_check "$@"
     release_deb "$@"
     ;;
-  debs)
+  s3debs)
     keys_check
-    release_deb2 "$@"
+    shift
+    s3_debs "$@"
     ;;
-  debslocal)
-    release_deb2 "$@"
+  builddebs)
+    shift
+    build_debs "$@"
     ;;
   help|-h|--help)
     usage "$@"

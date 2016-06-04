@@ -16,27 +16,22 @@ if [ ! -z "$1" ]; then
   ERIS_BRANCH="$1"
 fi
 
-: ${CROSSPKG_GH_ACCOUNT:="eris-ltd"}
-: ${CROSSPKG_ARCH:="amd64"}
-: ${CROSSPKG_GOOS:="linux"}
-: ${CROSSPKG_GOARCH:="amd64"}
-
 echo
 echo ">>> Importing GPG keys"
 echo
 gpg --import linux-public-key.asc
 gpg --import linux-private-key.asc
 
-export GOREPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
-git clone https://github.com/${CROSSPKG_GH_ACCOUNT}/eris-cli ${GOREPO}
+export GOREPO=${GOPATH}/src/eris-ltd/eris-cli
+git clone https://github.com/eris-ltd/eris-cli ${GOREPO}
 pushd ${GOREPO}/cmd/eris
 git fetch origin ${ERIS_BRANCH}
 git checkout ${ERIS_BRANCH}
 echo
-echo ">>> Building the Eris binary [${ERIS_BRANCH}@${CROSSPKG_GH_ACCOUNT}]"
+echo ">>> Building the Eris binary"
 echo
-GOOS=${CROSSPKG_GOOS} GOARCH=${CROSSPKG_GOARCH} go get
-GOOS=${CROSSPKG_GOOS} GOARCH=${CROSSPKG_GOARCH} go build
+go get
+go build
 popd
 
 echo
@@ -48,7 +43,7 @@ cat > deb/DEBIAN/control <<EOF
 Package: eris
 Version: ${ERIS_VERSION}-${ERIS_RELEASE}
 Section: devel
-Architecture: ${CROSSPKG_ARCH}
+Architecture: amd64
 Priority: standard
 Homepage: https://docs.erisindustries.com
 Maintainer: Eris Industries <support@erisindustries.com>
@@ -67,94 +62,91 @@ Copyright: $(date +%Y) Eris Industries, Ltd. <support@erisindustries.com>
 License: GPL-3
 EOF
 dpkg-deb --build deb
-PACKAGE=eris_${ERIS_VERSION}-${ERIS_RELEASE}_${CROSSPKG_ARCH}.deb
+PACKAGE=eris_${ERIS_VERSION}-${ERIS_RELEASE}_amd64.deb
 mv deb.deb ${PACKAGE}
 
-if [ "${AWS_S3}" != "no" ] 
-then
-    echo
-    echo ">>> Copying Debian packages to Amazon S3"
-    echo
-    cat > ${HOME}/.s3cfg <<EOF
+echo
+echo ">>> Copying Debian packages to Amazon S3"
+echo
+cat > ${HOME}/.s3cfg <<EOF
 [default]
 access_key = ${AWS_ACCESS_KEY}
 secret_key = ${AWS_SECRET_ACCESS_KEY}
 EOF
-    s3cmd put ${PACKAGE} s3://${AWS_S3_DEB_PACKAGES}
+s3cmd put ${PACKAGE} s3://${AWS_S3_DEB_PACKAGES}
 
-    if [ "$ERIS_BRANCH" != "master" ] && [ "${CROSSPKG_ARCH}" != "armhf" ]
-    then
-       echo
-       echo ">>> Not recreating a repo for #${ERIS_BRANCH} branch on ${CROSSPKG_ARCH}"
-       echo
-       exit 0
-    fi
+if [ "$ERIS_BRANCH" != "master" ]
+then
+   echo
+   echo ">>> Not recreating a repo for #${ERIS_BRANCH} branch"
+   echo
+   exit 0
+fi
 
-    echo
-    echo ">>> Creating an APT repository"
-    echo
-    mkdir -p eris/conf
-    gpg --armor --export "${KEY_NAME}" > eris/APT-GPG-KEY
+echo
+echo ">>> Creating an APT repository"
+echo
+mkdir -p eris/conf
+gpg --armor --export "${KEY_NAME}" > eris/APT-GPG-KEY
 
-    cat > eris/conf/options <<EOF
+cat > eris/conf/options <<EOF
 verbose
 basedir /root/eris
 ask-passphrase
 EOF
 
-    DISTROS="precise trusty utopic vivid wheezy jessie stretch wily xenial"
-    for distro in ${DISTROS}
-    do
-      cat >> eris/conf/distributions <<EOF
+DISTROS="precise trusty utopic vivid wheezy jessie stretch wily xenial"
+for distro in ${DISTROS}
+do
+  cat >> eris/conf/distributions <<EOF
 Origin: Eris Industries <support@erisindustries.com>
 Codename: ${distro}
 Components: main
-Architectures: i386 amd64 armhf
+Architectures: i386 amd64
 SignWith: $(gpg --keyid-format=long --list-keys --with-colons|fgrep "${KEY_NAME}"|cut -d: -f5)
 
 EOF
-    done
+done
 
-    for distro in ${DISTROS}
-    do
-      echo
-      echo ">>> Adding package to ${distro}"
-      echo
-      expect <<-EOF
-        set timeout 5
-        spawn reprepro -Vb eris includedeb ${distro} ${PACKAGE}
-        expect {
-                timeout                    { send_error "Failed to submit password"; exit 1 }
-                "Please enter passphrase:" { send -- "${KEY_PASSWORD}\r";
-                                             send_user "********";
-                                             exp_continue
-                                           }
-        }
-        wait
-        exit 0
+for distro in ${DISTROS}
+do
+  echo
+  echo ">>> Adding package to ${distro}"
+  echo
+  expect <<-EOF
+    set timeout 5
+    spawn reprepro -Vb eris includedeb ${distro} ${PACKAGE}
+    expect {
+            timeout                    { send_error "Failed to submit password"; exit 1 }
+            "Please enter passphrase:" { send -- "${KEY_PASSWORD}\r";
+                                         send_user "********";
+                                         exp_continue
+                                       }
+    }
+    wait
+    exit 0
 EOF
-    done
+done
 
-    echo
-    echo ">>> After adding we have the following"
-    echo
-    reprepro -b eris ls eris
+echo
+echo ">>> After adding we have the following"
+echo
+reprepro -b eris ls eris
 
-    echo
-    echo ">>> Syncing repos to Amazon S3"
-    echo
-    s3cmd sync eris/APT-GPG-KEY s3://${AWS_S3_DEB_REPO}
-    s3cmd sync eris/db s3://${AWS_S3_DEB_REPO}
-    s3cmd sync eris/dists s3://${AWS_S3_DEB_REPO}
-    s3cmd sync eris/pool s3://${AWS_S3_DEB_REPO}
+echo
+echo ">>> Syncing repos to Amazon S3"
+echo
+s3cmd sync eris/APT-GPG-KEY s3://${AWS_S3_DEB_REPO}
+s3cmd sync eris/db s3://${AWS_S3_DEB_REPO}
+s3cmd sync eris/dists s3://${AWS_S3_DEB_REPO}
+s3cmd sync eris/pool s3://${AWS_S3_DEB_REPO}
 
-    echo
-    echo ">>> Installation instructions"
-    echo
-    echo "  \$ curl https://${AWS_S3_DEB_REPO}.s3.amazonaws/APT-GPG-KEY | apt-key add -"
-    echo "  \$ echo \"deb https://eris-deb-repo.s3.amazonaws.com DIST main\" > /etc/apt/sources.list.d/eris.list"
-    echo
-    echo "  \$ apt-get update"
-    echo "  \$ apt-get install eris"
-    echo
-fi
+echo
+echo ">>> Installation instructions"
+echo
+echo "  \$ curl https://${AWS_S3_DEB_REPO}.s3.amazonaws/APT-GPG-KEY | apt-key add -"
+echo "  \$ echo \"deb https://eris-deb-repo.s3.amazonaws.com DIST main\" > /etc/apt/sources.list.d"
+echo
+echo "  \$ apt-get update"
+echo "  \$ apt-get install eris"
+echo
