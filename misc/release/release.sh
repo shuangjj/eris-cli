@@ -74,8 +74,8 @@ ERIS_RELEASE=1
 # AWS_SECRET_ACCESS_KEY=
 AWS_S3_RPM_REPO=eris-rpm
 AWS_S3_RPM_PACKAGES=eris-rpm-files
-AWS_S3_DEB_REPO=eris4iot/eris-deb/
-AWS_S3_DEB_PACKAGES=eris4iot/eris-deb-files/
+AWS_S3_DEB_REPO=eris-iot-repo/eris-deb/
+AWS_S3_DEB_PACKAGES=eris-iot-repo/eris-deb-files/
 KEY_NAME="Eris Industries (DISTRIBUTION SIGNATURE MASTER KEY) <support@erisindustries.com>"
 KEY_PASSWORD="one1two!three"
 
