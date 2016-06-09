@@ -1,4 +1,4 @@
-// +build !arm,!alpine
+// +build !arm
 
 package version
 

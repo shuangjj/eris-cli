@@ -1,5 +1,3 @@
-// +build !alpine
-
 package initialize
 
 import (
@@ -178,7 +176,7 @@ func drops(files []string, typ, dir, from string) error {
 	archPrefix := ""
 	if runtime.GOARCH == "arm" {
 		if repo != "eris-actions" {
-			archPrefix = "dist/arm/"
+			archPrefix = "dist/arm-alpine/"
 		}
 	}
 
