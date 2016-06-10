@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 	// log.SetLevel(log.InfoLevel)
 	// log.SetLevel(log.DebugLevel)
 
-	tests.IfExit(tests.TestsInit("chain"))
+	tests.IfExit(tests.TestsInit(tests.ConnectAndPull))
 	mockChainDefinitionFile(chainName)
 
 	exitCode := m.Run()
@@ -42,6 +42,7 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 
+<<<<<<< HEAD
 func TestLoadChainDefinition(t *testing.T) {
 	// [pv]: this test belongs to the loaders package.
 	var err error
@@ -421,7 +422,7 @@ func TestRmChain(t *testing.T) {
 func TestServiceLinkNoChain(t *testing.T) {
 	defer tests.RemoveAllContainers()
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "$chain:fake"
 
 [service]
@@ -442,7 +443,7 @@ data_container = true
 func TestServiceLinkBadChain(t *testing.T) {
 	defer tests.RemoveAllContainers()
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "$chain:fake"
 
 [service]
@@ -465,7 +466,7 @@ func TestServiceLinkBadChainWithoutChainInDefinition(t *testing.T) {
 
 	create(t, chainName)
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 [service]
 name = "fake"
 image = "`+path.Join(ver.ERIS_REG_DEF, ver.ERIS_IMG_IPFS)+`"
@@ -490,6 +491,7 @@ image = "`+path.Join(ver.ERIS_REG_DEF, ver.ERIS_IMG_IPFS)+`"
 		t.Fatalf("expecting fake data container doesn't exist")
 	}
 }
+
 func TestServiceLink(t *testing.T) {
 	defer tests.RemoveAllContainers()
 
@@ -501,7 +503,7 @@ func TestServiceLink(t *testing.T) {
 		t.Fatalf("could not start a new chain, got %v", err)
 	}
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "$chain:fake"
 
 [service]
@@ -516,7 +518,7 @@ data_container = false
 		t.Fatalf("expecting fake chain container")
 	}
 	if util.Running(def.TypeService, "fake") {
-		t.Fatalf("expecting fake service not running")
+		t.Fatalf("expecting fake service running")
 	}
 	if util.Exists(def.TypeData, "fake") {
 		t.Fatalf("expecting fake data container doesn't exist")
@@ -530,7 +532,7 @@ data_container = false
 	}
 
 	if !util.Running(def.TypeService, "fake") {
-		t.Fatalf("expecting fake service running")
+		t.Fatalf("expecting fake service not running")
 	}
 	if util.Exists(def.TypeData, "fake") {
 		t.Fatalf("expecting fake data container doesn't exist")
@@ -553,7 +555,7 @@ func TestServiceLinkWithDataContainer(t *testing.T) {
 		t.Fatalf("could not start a new chain, got %v", err)
 	}
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "$chain:fake"
 
 [service]
@@ -605,7 +607,7 @@ func TestServiceLinkLiteral(t *testing.T) {
 		t.Fatalf("could not start a new chain, got %v", err)
 	}
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "`+chain+`:fake"
 
 [service]
@@ -656,7 +658,7 @@ func TestServiceLinkBadLiteral(t *testing.T) {
 		t.Fatalf("could not start a new chain, got %v", err)
 	}
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "blah-blah:blah"
 
 [service]
@@ -690,7 +692,7 @@ func TestServiceLinkChainedService(t *testing.T) {
 
 	const chain = "test-chained-service"
 
-	if err := tests.FakeServiceDefinition(erisDir, "fake", `
+	if err := tests.FakeServiceDefinition("fake", `
 chain = "$chain:fake"
 
 [service]
@@ -703,7 +705,7 @@ services = [ "sham" ]
 		t.Fatalf("can't create a fake service definition: %v", err)
 	}
 
-	if err := tests.FakeServiceDefinition(erisDir, "sham", `
+	if err := tests.FakeServiceDefinition("sham", `
 chain = "$chain:sham"
 
 [service]
@@ -835,7 +837,7 @@ func exec(t *testing.T, chain string, args []string) string {
 }
 
 func mockChainDefinitionFile(name string) error {
-	definition := loaders.MockChainDefinition(name, name, false)
+	definition := loaders.MockChainDefinition(name, name)
 
 	return WriteChainDefinitionFile(definition, filepath.Join(erisDir, "chains", name))
 }

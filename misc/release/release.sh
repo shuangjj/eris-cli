@@ -74,8 +74,10 @@ ERIS_RELEASE=1
 # AWS_SECRET_ACCESS_KEY=
 AWS_S3_RPM_REPO=eris-rpm
 AWS_S3_RPM_PACKAGES=eris-rpm-files
-AWS_S3_DEB_REPO=eris-iot-repo/eris-deb/
-AWS_S3_DEB_PACKAGES=eris-iot-repo/eris-deb-files/
+AWS_S3_IOT_DEB_REPO=eris-iot-repo/eris-deb/
+AWS_S3_IOT_DEB_PACKAGES=eris-iot-repo/eris-deb-files/
+AWS_S3_DEB_REPO=eris-deb
+AWS_S3_DEB_PACKAGES=eris-deb-files
 KEY_NAME="Eris Industries (DISTRIBUTION SIGNATURE MASTER KEY) <support@erisindustries.com>"
 KEY_PASSWORD="one1two!three"
 
@@ -304,8 +306,8 @@ s3_debs() {
     -e ERIS_VERSION=${ERIS_VERSION} \
     -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
     -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
-    -e AWS_S3_DEB_REPO=${AWS_S3_DEB_REPO} \
-    -e AWS_S3_DEB_PACKAGES=${AWS_S3_DEB_PACKAGES} \
+    -e AWS_S3_DEB_REPO=${AWS_S3_IOT_DEB_REPO} \
+    -e AWS_S3_DEB_PACKAGES=${AWS_S3_IOT_DEB_PACKAGES} \
     -e KEY_NAME="${KEY_NAME}" \
     -e KEY_PASSWORD="${KEY_PASSWORD}" \
     -e RELEASE_DIR_MAIN=/releases/main \
@@ -372,7 +374,6 @@ usage() {
   echo "   release.sh builddebs buildtuple...      build Debian packages for multiple architectures"
   echo "                                           buildtuple=(ARCH:BRANCH:ACTION), ACTION='release'/'build'"
   echo "   release.sh s3debs buildtuple...         publish Debian packages for multiple architectures"
-
   echo
   exit 2
 }

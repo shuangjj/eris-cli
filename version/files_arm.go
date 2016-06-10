@@ -2,8 +2,8 @@ package version
 
 var (
 	SERVICE_DEFINITIONS = []string{
-		"ipfs.toml",
-		"keys.toml",
+	//"ipfs.toml",
+	//"keys.toml",
 	}
 
 	ACTION_DEFINITIONS = []string{

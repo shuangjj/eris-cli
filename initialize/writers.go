@@ -30,6 +30,12 @@ func dropServiceDefaults(dir, from string) error {
 	if err := drops(ver.SERVICE_DEFINITIONS, "services", dir, from); err != nil {
 		return err
 	}
+	if err := writeDefaultFile(common.ServicesPath, "keys.toml", defServiceKeys); err != nil {
+		return fmt.Errorf("Cannot add default keys.toml: %s.\n", err)
+	}
+	if err := writeDefaultFile(common.ServicesPath, "ipfs.toml", defServiceIPFS); err != nil {
+		return fmt.Errorf("Cannot add default ipfs.toml: %s.\n", err)
+	}
 	return nil
 }
 
@@ -91,7 +97,7 @@ func dropChainDefaults(dir, from string) error {
 
 func pullDefaultImages() error {
 	images := []string{
-		ver.ERIS_IMG_BASE,
+		//ver.ERIS_IMG_BASE,
 		ver.ERIS_IMG_DATA,
 		ver.ERIS_IMG_KEYS,
 		ver.ERIS_IMG_IPFS,

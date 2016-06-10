@@ -53,6 +53,12 @@ Complete documentation is available at https://docs.erisindustries.com
 			return
 		}
 
+		// Don't try to connect to Docker for informational
+		// or bug fixing commands.
+		switch cmd.Use {
+		case "version", "update", "man":
+			return
+		}
 
 		util.DockerConnect(do.Verbose, do.MachineName)
 		ipfs.IpfsHost = config.GlobalConfig.Config.IpfsHost
