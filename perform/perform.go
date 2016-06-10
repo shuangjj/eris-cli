@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/eris-ltd/eris-cli/config"
@@ -628,15 +627,12 @@ func DockerRemoveImage(name string, force bool) error {
 	return util.DockerError(util.DockerClient.RemoveImageExtended(name, removeOpts))
 }
 
-// DockerBuild will build an image with imageName
-// and a Dockerfile passed in as strings
-// Function is ~ to `docker build -t imageName .`
-// where a Dockerfile is in the `pwd`
-func DockerBuild(imageName, dockerfile string) error {
-	// below has been adapted from:
-	// https://godoc.org/github.com/fsouza/go-dockerclient#Client.BuildImage
-	// and could probably be much more elegant
-	t := time.Now()
+// DockerBuild builds an image with image name and dockerfile text passed
+// as parameters. It behaves the same way as the command `docker build -t <image> .`
+// where the dockerfile text is in the Dockerfile within the same directory.
+// DockerBuild returns Docker errors on exit if not successful.
+func DockerBuild(image, dockerfile string) error {
+	// Below has been adapted from https://godoc.org/github.com/fsouza/go-dockerclient#Client.BuildImage
 	inputbuf := bytes.NewBuffer(nil)
 	tr := tar.NewWriter(inputbuf)
 	tr.WriteHeader(&tar.Header{Name: "Dockerfile", Size: int64(len([]byte(dockerfile)))})
@@ -645,13 +641,12 @@ func DockerBuild(imageName, dockerfile string) error {
 
 	r, w := io.Pipe()
 	imgOpts := docker.BuildImageOptions{
-		Name: imageName,
-		//Dockerfile: dockerfile,
-		RmTmpContainer: true,
-		InputStream:    inputbuf,
-		OutputStream:   w,
-		//OutputStream: outputbuf,
-		RawJSONStream: true,
+		Name:                image,
+		RmTmpContainer:      true,
+		ForceRmTmpContainer: true,
+		InputStream:         inputbuf,
+		OutputStream:        w,
+		RawJSONStream:       true,
 	}
 
 	ch := make(chan error, 1)
