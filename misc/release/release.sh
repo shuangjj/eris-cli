@@ -56,8 +56,16 @@
 #           ]
 #         }
 #
-REPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
+if [ -z "${WORKSPACE}" ]
+then
+  REPO=${GOPATH}/src/github.com/eris-ltd/eris-cli
+else
+  REPO=${WORKSPACE}
+fi
 BUILD_DIR=${REPO}/builds
+RELEASE_DIR=${REPO}/releases
+RELEASE_DIR_MAIN=${RELEASE_DIR}/main/
+RELEASE_DIR_EXPERIMENTAL=${RELEASE_DIR}/experimental/
 ERIS_VERSION=$(grep -w VERSION ${REPO}/version/version.go | cut -d \  -f 4 | tr -d '"')
 ERIS_RELEASE=1
 # NOTE: Please, set these up before continuing:
@@ -66,6 +74,8 @@ ERIS_RELEASE=1
 # AWS_SECRET_ACCESS_KEY=
 AWS_S3_RPM_REPO=eris-rpm
 AWS_S3_RPM_PACKAGES=eris-rpm-files
+AWS_S3_IOT_DEB_REPO=eris-iot-repo/eris-deb/
+AWS_S3_IOT_DEB_PACKAGES=eris-iot-repo/eris-deb-files/
 AWS_S3_DEB_REPO=eris-deb
 AWS_S3_DEB_PACKAGES=eris-deb-files
 KEY_NAME="Eris Industries (DISTRIBUTION SIGNATURE MASTER KEY) <support@erisindustries.com>"
@@ -120,6 +130,7 @@ cross_compile() {
   pushd ${REPO}/cmd/eris
   GOOS=linux   GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_386
   GOOS=linux   GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_amd64
+  GOOS=linux   GOARCH=arm    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_arm
   GOOS=darwin  GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_386
   GOOS=darwin  GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_amd64
   GOOS=windows GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_386.exe
@@ -204,6 +215,112 @@ release_deb() {
   echo "Finished releasing Debian packages"
 }
 
+#-------------------------------------------------------------------------------
+# Build Debian packages and restore to ${REPO}/builds
+# @Input: build tuples as "ARCH:BRANCH:ACTION"... ACTION supports "build" and 
+#         "release". If "release", restore package to ${REPO}/releases
+#-------------------------------------------------------------------------------
+build_debs() {
+  echo ">>> Building Debian packages"
+  mkdir -p ${BUILD_DIR}
+  mkdir -p ${RELEASE_DIR_MAIN}
+  mkdir -p ${RELEASE_DIR_EXPERIMENTAL}
+  buildtuples=("$@")
+  for bt in ${buildtuples[@]}
+  do
+      #set $(echo $bt | sed -e 's/:/ /g')
+      local IFS=":"
+      set $bt; arch=$1; branch=$2; action=$3
+      if [ ! -z "$branch" ] && [ "$branch" != "master" ] 
+      then
+        releasedir=${RELEASE_DIR_EXPERIMENTAL}
+      else
+        releasedir=${RELEASE_DIR_MAIN}
+      fi 
+
+      echo
+      echo "Start building eris deb"
+      echo 
+      # GOARCH examples: amd64, arm, 386
+      # Debian arch examples: amd64, x86_64, i386, armhf
+      case "$arch" in
+          armhf)
+            CROSSPKG_GH_ACCOUNT="shuangjj"
+            CROSSPKG_ARCH="armhf"
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="arm"
+            ;;
+          amd64 | x86_64)
+            CROSSPKG_GH_ACCOUNT="eris-ltd"
+            CROSSPKG_ARCH=$arch
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="amd64"
+            ;;
+          i386)
+            CROSSPKG_GH_ACCOUNT="eris-ltd"
+            CROSSPKG_ARCH=$arch
+            CROSSPKG_GOOS="linux"
+            CROSSPKG_GOARCH="386"
+            ;;
+          *)
+            echo "Unsupported architecture $arch"
+            exit 1
+            ;;
+      esac
+
+      docker rm -f builddeb2 &>/dev/null
+      docker build -f ${REPO}/misc/release/builddeb2.df -t builddeb2img ${REPO}/misc/release &>/dev/null \
+      && docker run \
+        -t \
+        --name builddeb2 \
+        -e ERIS_VERSION=${ERIS_VERSION} \
+        -e ERIS_RELEASE=${ERIS_RELEASE} \
+        -e CROSSPKG_GH_ACCOUNT=${CROSSPKG_GH_ACCOUNT} \
+        -e CROSSPKG_GOOS=${CROSSPKG_GOOS} \
+        -e CROSSPKG_GOARCH=${CROSSPKG_GOARCH} \
+        -e CROSSPKG_ARCH=${CROSSPKG_ARCH} \
+        builddeb2img "$branch" \
+      && docker cp builddeb2:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_${CROSSPKG_ARCH}.deb ${BUILD_DIR}
+      if [ "$action" = "release" ]
+      then
+        docker cp builddeb2:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_${CROSSPKG_ARCH}.deb ${releasedir}
+      fi
+      docker rm -f builddeb2
+  done
+  echo "Finished building Debian packages"
+
+}
+
+s3_debs() {
+  mkdir -p ${BUILD_DIR}
+  mkdir -p ${RELEASE_DIR_MAIN} &>/dev/null
+  mkdir -p ${RELEASE_DIR_EXPERIMENTAL} &>/dev/null
+  build_debs $@
+
+  echo ">>> Releasing Debian packages"
+  docker rm -f releasedebs &>/dev/null
+  docker build -f ${REPO}/misc/release/releasedebs.df -t releasedebsimg ${REPO}/misc/release &>/dev/null \
+  && docker run \
+    -t \
+    --name releasedebs \
+    -e ERIS_VERSION=${ERIS_VERSION} \
+    -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
+    -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+    -e AWS_S3_DEB_REPO=${AWS_S3_IOT_DEB_REPO} \
+    -e AWS_S3_DEB_PACKAGES=${AWS_S3_IOT_DEB_PACKAGES} \
+    -e KEY_NAME="${KEY_NAME}" \
+    -e KEY_PASSWORD="${KEY_PASSWORD}" \
+    -e RELEASE_DIR_MAIN=/releases/main \
+    -e RELEASE_DIR_EXPERIMENTAL=/releases/experimental \
+    -v ${RELEASE_DIR_MAIN}:/releases/main \
+    -v ${RELEASE_DIR_EXPERIMENTAL}:/releases/experimental \
+    releasedebsimg \
+  && docker rm -f releasedebs \
+  && rm -r ${RELEASE_DIR}/*
+
+  echo "Finished releasing Debian packages"
+}
+
 release_rpm() {
   echo "Releasing RPM packages"
   shift
@@ -244,16 +361,19 @@ usage() {
   echo "Usage: release.sh [pre|build|pkgs|rpm|deb|help]"
   echo "Release Eris CLI to Github. Publish Linux packages to Amazon S3"
   echo
-  echo "   release.sh              release #master"
-  echo "   release.sh pre          prerelease #master"
-  echo "   release.sh build        cross compile current branch "
-  echo "                           for all supported architectures"
-  echo "   release.sh pkgs         cross compile current branch"
-  echo "                           and publish Linux packages"
-  echo "   release.sh deb          publish Debian package and create APT repo"
-  echo "   release.sh rpm          publish RPM package and create YUM repo"
-  echo "   release.sh deb develop  publish Debian package for the #develop branch"
-  echo "   release.sh rpm develop  publish RPM package for the #develop branch"
+  echo "   release.sh                              release #master"
+  echo "   release.sh pre                          prerelease #master"
+  echo "   release.sh build                        cross compile current branch "
+  echo "                                           for all supported architectures"
+  echo "   release.sh pkgs                         cross compile current branch"
+  echo "                                           and publish Linux packages"
+  echo "   release.sh deb                          publish Debian package and create APT repo"
+  echo "   release.sh rpm                          publish RPM package and create YUM repo"
+  echo "   release.sh deb develop                  publish Debian package for the #develop branch"
+  echo "   release.sh rpm develop                  publish RPM package for the #develop branch"
+  echo "   release.sh builddebs buildtuple...      build Debian packages for multiple architectures"
+  echo "                                           buildtuple=(ARCH:BRANCH:ACTION), ACTION='release'/'build'"
+  echo "   release.sh s3debs buildtuple...         publish Debian packages for multiple architectures"
   echo
   exit 2
 }
@@ -275,6 +395,15 @@ main() {
   deb)
     keys_check "$@"
     release_deb "$@"
+    ;;
+  s3debs)
+    keys_check
+    shift
+    s3_debs "$@"
+    ;;
+  builddebs)
+    shift
+    build_debs "$@"
     ;;
   help|-h|--help)
     usage "$@"

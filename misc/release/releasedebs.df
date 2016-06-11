@@ -1,0 +1,25 @@
+FROM ubuntu:15.04
+
+MAINTAINER Eris Industries <support@erisindustries.com>
+
+RUN apt-get update \
+   && apt-get install -y sudo \
+                    curl \
+                    lintian \
+                    reprepro \
+                    debsigs \
+                    expect
+
+RUN curl -o - -q http://s3tools.org/repo/deb-all/stable/s3tools.key | apt-key add - \
+    && curl -o /etc/apt/sources.list.d/s3tools.list http://s3tools.org/repo/deb-all/stable/s3tools.list \
+    && apt-get update \
+    && apt-get install -y s3cmd
+
+
+WORKDIR /root
+
+COPY linux-private-key.asc /root/
+COPY linux-public-key.asc /root/
+COPY releasedebs.sh   /root/
+
+ENTRYPOINT ["/root/releasedebs.sh"]
