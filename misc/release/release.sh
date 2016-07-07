@@ -67,11 +67,14 @@ RELEASE_DIR=${REPO}/releases
 RELEASE_DIR_MAIN=${RELEASE_DIR}/main/
 RELEASE_DIR_EXPERIMENTAL=${RELEASE_DIR}/experimental/
 ERIS_VERSION=$(grep -w VERSION ${REPO}/version/version.go | cut -d \  -f 4 | tr -d '"')
+LATEST_TAG=$(git tag | xargs -I@ git log --format=format:"%ai @%n" -1 @ | sort | awk '{print $4}' | tail -n 1 | cut -c 2-)
 ERIS_RELEASE=1
+
 # NOTE: Please, set these up before continuing:
 # 
 # AWS_ACCESS_KEY=
 # AWS_SECRET_ACCESS_KEY=
+export GITHUB_TOKEN=
 AWS_S3_RPM_REPO=eris-rpm
 AWS_S3_RPM_PACKAGES=eris-rpm-files
 AWS_S3_IOT_DEB_REPO=eris-iot-repo/eris-deb/
@@ -82,7 +85,7 @@ KEY_NAME="Eris Industries (DISTRIBUTION SIGNATURE MASTER KEY) <support@erisindus
 KEY_PASSWORD="one1two!three"
 
 pre_check() {
-  read -p "Have you done the [git tag -a v${ERIS_VERSION}] and filled out the changelog yet? (y/n) " -n 1 -r
+  read -p "Have you tagged the release and filled out the changelog yet? (y/n) " -n 1 -r
   echo
   if [[ ! ${REPLY} =~ ^[Yy]$ ]]
   then
@@ -92,8 +95,7 @@ pre_check() {
   echo "OK. Moving on then"
   echo ""
   echo ""
-  LATEST_TAG=$(git tag | xargs -I@ git log --format=format:"%ai @%n" -1 @ | sort | awk '{print $4}' | tail -n 1 | cut -c 2-)
-  if [[ "${LATEST_TAG}" != "${ERIS_VERSION}}" ]]
+  if ! echo ${LATEST_TAG}|grep ${ERIS_VERSION}
   then
     echo "Something isn't right. The last tagged version does not match the version to be released"
     echo "Last tagged: ${LATEST_TAG}"
@@ -125,60 +127,72 @@ keys_check() {
   fi
 }
 
+token_check() {
+  if [ -z "${GITHUB_TOKEN}" ]
+  then
+    echo "You have to have the GITHUB_TOKEN variable set to publish releases"
+    exit 1
+  fi
+}
+
 cross_compile() {
-  echo "Starting cross compile"
   pushd ${REPO}/cmd/eris
-  GOOS=linux   GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_386
-  GOOS=linux   GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_amd64
+  echo "Starting cross compile"
+
+  LDFLAGS="-X github.com/eris-ltd/eris-cli/version.COMMIT=`git rev-parse --short HEAD 2>/dev/null`"
+
+  GOOS=linux   GOARCH=386    go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_386
+  GOOS=linux   GOARCH=amd64  go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_amd64
   GOOS=linux   GOARCH=arm    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_linux_arm
-  GOOS=darwin  GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_386
-  GOOS=darwin  GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_amd64
-  GOOS=windows GOARCH=386    go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_386.exe
-  GOOS=windows GOARCH=amd64  go build -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_amd64.exe
-  popd
+  GOOS=darwin  GOARCH=386    go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_386
+  GOOS=darwin  GOARCH=amd64  go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_darwin_amd64
+  GOOS=windows GOARCH=386    go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_386.exe
+  GOOS=windows GOARCH=amd64  go build -ldflags "${LDFLAGS}" -o ${BUILD_DIR}/eris_${ERIS_VERSION}_windows_amd64.exe
   echo "Cross compile completed"
   echo ""
   echo ""
+  popd
 }
 
 prepare_gh() {
-  echo "Pushing tags to Github and creating a Github release"
-  git push origin --tags
-  DESCRIPTION=$(git show v${ERIS_VERSION})
+  DESCRIPTION="$(git show v${LATEST_TAG})"
+
   if [[ "$1" == "pre" ]]
   then
     github-release release \
       --user eris-ltd \
       --repo eris-cli \
-      --tag v${ERIS_VERSION} \
-      --name "Release of Version: ${ERIS_VERSION}" \
+      --tag v${LATEST_TAG} \
+      --name "Release of Version: ${LATEST_TAG}" \
       --description "${DESCRIPTION}" \
       --pre-release
   else
     github-release release \
       --user eris-ltd \
       --repo eris-cli \
-      --tag v${ERIS_VERSION} \
-      --name "Release of Version: ${ERIS_VERSION}" \
+      --tag v${LATEST_TAG} \
+      --name "Release of Version: ${LATEST_TAG}" \
       --description "${DESCRIPTION}"
   fi
-  echo "Finished sending tags and release info to Github"
+  echo "Finished sending release info to Github"
   echo ""
   echo ""
 }
 
 release_gh() {
   echo "Uploading binaries to Github"
-  for file in ${BUILD_DIR}/*
+  pushd ${BUILD_DIR}
+  for file in *
   do
     echo "Uploading: ${file}"
     github-release upload \
       --user eris-ltd \
       --repo eris-cli \
-      --tag v${ERIS_VERSION} \
+      --tag v${LATEST_TAG} \
       --name ${file} \
       --file ${file}
   done
+  popd
   echo "Uploading completed"
   echo ""
   echo ""
@@ -194,12 +208,16 @@ release_deb() {
     ERIS_RELEASE="$@"
   fi
 
+  # reprepro(1) doesn't allow '-' in version numbers (that is '-rc1', etc).
+  # Debian versions are not SemVer compatible.
+  ERIS_DEB_VERSION=${ERIS_VERSION//-/}
+
   docker rm -f builddeb 2>&1 >/dev/null
   docker build -f ${REPO}/misc/release/Dockerfile-deb -t builddeb ${REPO}/misc/release \
   && docker run \
     -t \
     --name builddeb \
-    -e ERIS_VERSION=${ERIS_VERSION} \
+    -e ERIS_VERSION=${ERIS_DEB_VERSION} \
     -e ERIS_RELEASE=${ERIS_RELEASE} \
     -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
     -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
@@ -210,7 +228,7 @@ release_deb() {
     -e KEY_NAME="${KEY_NAME}" \
     -e KEY_PASSWORD="${KEY_PASSWORD}" \
     builddeb "$@" \
-  && docker cp builddeb:/root/eris_${ERIS_VERSION}-${ERIS_RELEASE}_amd64.deb ${BUILD_DIR} \
+  && docker cp builddeb:/root/eris_${ERIS_DEB_VERSION}-${ERIS_RELEASE}_amd64.deb ${BUILD_DIR} \
   && docker rm -f builddeb
   echo "Finished releasing Debian packages"
 }
@@ -331,12 +349,16 @@ release_rpm() {
     ERIS_RELEASE="$@"
   fi
 
+  # rpmbuild(1) doesn't allow '-' in version numbers (that is '-rc1', etc).
+  # RPM versions are not SemVer compatible.
+  ERIS_RPM_VERSION=${ERIS_VERSION//-/_}
+
   docker rm -f buildrpm 2>&1 >/dev/null
   docker build -f ${REPO}/misc/release/Dockerfile-rpm -t buildrpm ${REPO}/misc/release \
   && docker run \
     -t \
     --name buildrpm \
-    -e ERIS_VERSION=${ERIS_VERSION} \
+    -e ERIS_VERSION=${ERIS_RPM_VERSION} \
     -e ERIS_RELEASE=${ERIS_RELEASE} \
     -e AWS_ACCESS_KEY=${AWS_ACCESS_KEY} \
     -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
@@ -347,14 +369,9 @@ release_rpm() {
     -e KEY_NAME="${KEY_NAME}" \
     -e KEY_PASSWORD="${KEY_PASSWORD}" \
     buildrpm "$@" \
-  && docker cp buildrpm:/root/rpmbuild/RPMS/x86_64/eris-cli-${ERIS_VERSION}-${ERIS_RELEASE}.x86_64.rpm ${BUILD_DIR} \
+  && docker cp buildrpm:/root/rpmbuild/RPMS/x86_64/eris-cli-${ERIS_RPM_VERSION}-${ERIS_RELEASE}.x86_64.rpm ${BUILD_DIR} \
   && docker rm -f buildrpm
   echo "Finished releasing RPM packages"
-}
-
-clean_up() {
-  echo "Cleaning up and exiting... Billings Shipit!"
-  rm -rf ${BUILD_DIR}
 }
 
 usage() {
@@ -411,12 +428,12 @@ main() {
   *)
     pre_check "$@"
     keys_check "$@"
+    token_check "$@"
     cross_compile "$@"
-    prepare_gh "$@"
-    release_gh "$@"
     release_deb "$@"
     release_rpm "$@"
-    clean_up $?
+    prepare_gh "$@"
+    release_gh "$@"
   esac
   return $?
 }

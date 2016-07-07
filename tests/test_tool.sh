@@ -77,8 +77,6 @@ setup() {
   fi
 
   echo "Checking the Host <-> Docker Connection"
-  # Used by clean/clean_test.go.
-  docker pull busybox &>/dev/null
   if [ $? -ne 0 ] && [ -z $1 ]
   then
     echo "Could not connect to Docker backend. Attempting to regenerate certificates."
@@ -150,8 +148,6 @@ packagesToTest() {
     # go test ./apps/... && passed Apps
     # if [ $? -ne 0 ]; then return 1; fi
     go test ./agent/... && passed Agent
-    if [ $? -ne 0 ]; then return 1; fi
-    go test ./cmd/... && passed Commands
     if [ $? -ne 0 ]; then return 1; fi
     go test ./clean/... && passed Clean
     if [ $? -ne 0 ]; then return 1; fi
