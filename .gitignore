@@ -28,5 +28,11 @@ _testmain.go
 docs/eris-cli
 .goxc.local.json
 builds
+releases
 
 *.swp
+
+# gpg credentail
+/misc/release/linux-private-key.asc
+/misc/release/linux-public-key.asc
+
